@@ -1,0 +1,1455 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Royal Barber Booking</title>
+    <!-- Telegram WebApp SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Default variables (Telegram fallback) */
+            --bg-color: var(--tg-theme-bg-color, #121212);
+            --text-color: var(--tg-theme-text-color, #f5f5f7);
+            --button-color: var(--tg-theme-button-color, #d4af37);
+            --button-text-color: var(--tg-theme-button-text-color, #121212);
+            --secondary-bg-color: var(--tg-theme-secondary-bg-color, #1e1e1e);
+            --hint-color: var(--tg-theme-hint-color, #8e8e93);
+            
+            /* Custom premium colors */
+            --gold: #d4af37;
+            --gold-gradient: linear-gradient(135deg, #f3e5ab 0%, #d4af37 50%, #aa7c11 100%);
+            --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body.theme-light {
+            --bg-color: #ffffff;
+            --text-color: #121212;
+            --button-color: #d4af37;
+            --button-text-color: #121212;
+            --secondary-bg-color: #f7f7f7;
+            --hint-color: #666666;
+            --card-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        body.theme-dark {
+            --bg-color: #121212;
+            --text-color: #ffffff;
+            --button-color: #d4af37;
+            --button-text-color: #121212;
+            --secondary-bg-color: #1c1c1c;
+            --hint-color: #b8b8b8;
+            --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            padding: 16px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* Top Header Styling */
+        header {
+            text-align: center;
+            margin-bottom: 24px;
+            animation: fadeInDown 0.6s ease;
+            position: relative;
+        }
+
+        .settings-btn {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .settings-btn:active {
+            transform: scale(0.9);
+        }
+
+        /* Settings Modal */
+        .settings-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-color);
+            z-index: 1000;
+            display: none; /* hidden by default */
+            flex-direction: column;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .settings-modal.active {
+            display: flex;
+            animation: fadeInDown 0.3s ease;
+        }
+        .settings-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+        .settings-header h2 {
+            font-size: 20px;
+            font-weight: 600;
+        }
+        .close-settings {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: var(--text-color);
+            cursor: pointer;
+        }
+        
+        .settings-section {
+            background: var(--secondary-bg-color);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .settings-section-title {
+            font-size: 14px;
+            color: var(--hint-color);
+            margin-bottom: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .settings-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            cursor: pointer;
+        }
+        .settings-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+        .settings-row span.label {
+            font-size: 16px;
+            font-weight: 500;
+        }
+        .settings-row span.icon {
+            font-size: 20px;
+        }
+        .settings-row.active span.label {
+            color: var(--gold);
+        }
+
+        .logo-container {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: var(--gold-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 12px;
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.4);
+            border: 2px solid var(--bg-color);
+        }
+
+        .logo-icon {
+            font-size: 36px;
+            color: #121212;
+            animation: rotate 6s infinite linear;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            background: var(--gold-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 4px;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: var(--hint-color);
+            font-weight: 300;
+        }
+
+        /* Steps Indicator */
+        .steps-container {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            position: relative;
+            padding: 0 8px;
+        }
+
+        .steps-line {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--secondary-bg-color);
+            z-index: 1;
+            transform: translateY(-50%);
+        }
+
+        .steps-line-progress {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 0%;
+            height: 2px;
+            background: var(--gold);
+            z-index: 2;
+            transform: translateY(-50%);
+            transition: var(--transition);
+        }
+
+        .step-node {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--secondary-bg-color);
+            border: 2px solid var(--secondary-bg-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+            position: relative;
+            z-index: 3;
+            color: var(--hint-color);
+            transition: var(--transition);
+        }
+
+        .step-node.active {
+            background: var(--bg-color);
+            border-color: var(--gold);
+            color: var(--gold);
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+        }
+
+        .step-node.completed {
+            background: var(--gold);
+            border-color: var(--gold);
+            color: #121212;
+        }
+
+        /* Views Styling */
+        .view-section {
+            display: none;
+            flex-direction: column;
+            gap: 16px;
+            animation: slideIn 0.4s ease;
+            flex: 1;
+        }
+
+        .view-section.active {
+            display: flex;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-left: 3px solid var(--gold);
+            padding-left: 8px;
+        }
+
+        /* Service Cards */
+        .service-list, .barber-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .card {
+            background: var(--secondary-bg-color);
+            border-radius: 16px;
+            padding: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(212, 175, 55, 0.3);
+        }
+
+        .card.selected {
+            background: rgba(212, 175, 55, 0.08);
+            border-color: var(--gold);
+            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.1);
+        }
+
+        .card-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .card-icon {
+            font-size: 28px;
+            width: 48px;
+            height: 48px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card-img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .card-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .card-name {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .card-desc {
+            font-size: 13px;
+            color: var(--hint-color);
+        }
+
+        .card-right {
+            text-align: right;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .card-price {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--gold);
+        }
+
+        .card-rating {
+            font-size: 12px;
+            color: #ffc107;
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            justify-content: flex-end;
+        }
+
+        /* Calendar and Time Grid */
+        .calendar-container {
+            background: var(--secondary-bg-color);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .date-slider {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding: 4px 0;
+            scrollbar-width: none;
+        }
+
+        .date-slider::-webkit-scrollbar {
+            display: none;
+        }
+
+        .date-btn {
+            flex: 0 0 70px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .date-btn.selected {
+            background: var(--gold);
+            color: #121212;
+            border-color: var(--gold);
+        }
+
+        .date-day-num {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .date-day-name {
+            font-size: 12px;
+            text-transform: uppercase;
+            font-weight: 400;
+            opacity: 0.8;
+        }
+
+        .time-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .time-slot {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 10px 0;
+            text-align: center;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 14px;
+        }
+
+        .time-slot.selected {
+            background: var(--gold);
+            color: #121212;
+            border-color: var(--gold);
+        }
+
+        .time-slot.disabled {
+            opacity: 0.2;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .no-slots {
+            grid-column: span 4;
+            text-align: center;
+            color: var(--hint-color);
+            padding: 20px 0;
+            font-size: 14px;
+        }
+
+        /* Confirmation Page */
+        .summary-card {
+            background: var(--secondary-bg-color);
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 12px;
+        }
+
+        .summary-row:last-child {
+            border: none;
+            padding-bottom: 0;
+        }
+
+        .summary-label {
+            color: var(--hint-color);
+            font-size: 14px;
+        }
+
+        .summary-value {
+            font-weight: 600;
+            text-align: right;
+        }
+
+        .total-price {
+            color: var(--gold);
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        /* Button controls */
+        .button-bar {
+            margin-top: auto;
+            padding-top: 24px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn-primary {
+            flex: 2;
+            background: var(--gold-gradient);
+            color: #121212;
+            border: none;
+            padding: 16px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.2);
+            transition: var(--transition);
+        }
+
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+
+        .btn-secondary {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-color);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 16px;
+            border-radius: 12px;
+            font-weight: 500;
+            font-size: 16px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        /* Success screen */
+        .success-screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            text-align: center;
+            flex: 1;
+            animation: zoomIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .success-icon {
+            font-size: 64px;
+            width: 100px;
+            height: 100px;
+            background: rgba(212, 175, 55, 0.1);
+            border: 2px solid var(--gold);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--gold);
+            margin-bottom: 12px;
+            box-shadow: 0 0 30px rgba(212, 175, 55, 0.2);
+        }
+
+        .success-title {
+            font-size: 24px;
+            font-weight: 700;
+            background: var(--gold-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .success-text {
+            font-size: 15px;
+            color: var(--hint-color);
+            line-height: 1.5;
+            max-width: 280px;
+        }
+
+        /* Animations */
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes zoomIn {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border-left-color: var(--gold);
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    
+        /* External Website Button (Gold & Black/White) */
+        .site-link-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 12px;
+            padding: 8px 18px;
+            border-radius: 20px;
+            background: #000000;
+            color: #ffffff;
+            border: 1.5px solid var(--gold);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            transition: var(--transition);
+            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.2);
+            letter-spacing: 0.5px;
+        }
+        .site-link-btn:hover {
+            background: var(--gold-gradient);
+            color: #121212;
+            border-color: transparent;
+            box-shadow: 0 4px 20px rgba(212, 175, 55, 0.4);
+            transform: translateY(-1px);
+        }
+        .site-link-btn:active {
+            transform: translateY(1px);
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <button class="settings-btn" id="btn-settings">⚙️</button>
+        <div class="logo-container">
+            <span class="logo-icon">💈</span>
+        </div>
+        <h1 data-i18n="title">ROYAL BARBER</h1>
+        <p class="subtitle" id="user-greeting">Xush kelibsiz!</p>
+        {% if external_website_url %}
+        <a href="{{ external_website_url }}" target="_blank" class="site-link-btn" data-i18n="visit_site">🌐 Saytga o'tish</a>
+        {% endif %}
+    </header>
+
+    <!-- Steps Indicator -->
+    <div class="steps-container" id="steps-indicator">
+        <div class="steps-line"></div>
+        <div class="steps-line-progress" id="progress-line"></div>
+        <div class="step-node active" data-step="1">1</div>
+        <div class="step-node" data-step="2">2</div>
+        <div class="step-node" data-step="3">3</div>
+        <div class="step-node" data-step="4">4</div>
+        <div class="step-node" data-step="5">5</div>
+    </div>
+
+
+
+    <!-- VIEW 1: Zone Selection -->
+    <section class="view-section active" id="view-1">
+        <h2 class="section-title" data-i18n="choose_zone">🪑 Zonani tanlang</h2>
+        <div id="zones-loading" class="spinner"></div>
+        <div class="service-list" id="zones-container"></div>
+    </section>
+
+    <!-- VIEW 2: Service Selection -->
+    <section class="view-section" id="view-2">
+        <h2 class="section-title" data-i18n="choose_service">✂️ Xizmatni tanlang</h2>
+        <div id="services-loading" class="spinner"></div>
+        <div class="service-list" id="services-container"></div>
+    </section>
+
+    <!-- VIEW 2: Barber Selection -->
+    <section class="view-section" id="view-3">
+        <h2 class="section-title" data-i18n="choose_barber">👨🔧 Ustani tanlang</h2>
+        <div id="barbers-loading" class="spinner"></div>
+        <div class="barber-list" id="barbers-container"></div>
+    </section>
+
+    <!-- VIEW 3: Date & Time Selection -->
+    <section class="view-section" id="view-4">
+        <h2 class="section-title" data-i18n="choose_date_time">📅 Sana va Vaqtni tanlang</h2>
+        <div class="calendar-container">
+            <div class="date-slider" id="dates-container"></div>
+            <div class="time-grid" id="slots-container">
+                <div class="no-slots" data-i18n="select_date_first">Iltimos, oldin sanani tanlang</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- VIEW 4: Confirmation Summary -->
+    <section class="view-section" id="view-5">
+        <h2 class="section-title" data-i18n="confirm_booking">📋 Navbatni tasdiqlash</h2>
+        <div class="summary-card">
+            
+            <div class="summary-row">
+                <span class="summary-label" data-i18n="sum_zone">Zona</span>
+                <span class="summary-value" id="sum-zone">-</span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label" data-i18n="sum_service">Xizmat</span>
+                <span class="summary-value" id="sum-service">-</span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label" data-i18n="sum_barber">Usta</span>
+                <span class="summary-value" id="sum-barber">-</span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label" data-i18n="sum_date">Sana</span>
+                <span class="summary-value" id="sum-date">-</span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label" data-i18n="sum_time">Vaqt</span>
+                <span class="summary-value" id="sum-time">-</span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label" data-i18n="sum_payment_status">To'lov holati</span>
+                <span class="summary-value" id="sum-payment" style="color: #ffc107;" data-i18n="status_pending">Kutilmoqda</span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label" data-i18n="sum_total">Jami narx</span>
+                <span class="summary-value total-price" id="sum-price">0 UZS</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Success Screen -->
+    <div class="success-screen" id="success-view">
+        <div class="success-icon">✓</div>
+        <div class="success-title" data-i18n="success_title">Muvaffaqiyatli!</div>
+        <p class="success-text" id="success-msg" data-i18n="success_msg">Navbatingiz muvaffaqiyatli band qilindi. Sizni belgilangan vaqtda kutamiz!</p>
+    </div>
+
+    <!-- Navigation Control Buttons -->
+    <div class="button-bar" id="navigation-buttons">
+        <button class="btn-secondary" id="btn-back" style="display: none;" data-i18n="btn_back">Orqaga</button>
+        <button class="btn-primary" id="btn-next" disabled data-i18n="btn_next">Davom etish</button>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="settings-modal" id="settings-modal">
+        <div class="settings-header">
+            <h2 data-i18n="settings_title">⚙️ Sozlamalar</h2>
+            <button class="close-settings" id="btn-close-settings">×</button>
+        </div>
+
+        <div class="settings-section">
+            <div class="settings-section-title" data-i18n="language_title">🌐 Til</div>
+            <div class="settings-row" onclick="setLanguage('uz')">
+                <span class="label">🇺🇿 O'zbekcha</span>
+                <span class="icon" id="lang-check-uz"></span>
+            </div>
+            <div class="settings-row" onclick="setLanguage('ru')">
+                <span class="label">🇷🇺 Русский</span>
+                <span class="icon" id="lang-check-ru"></span>
+            </div>
+            <div class="settings-row" onclick="setLanguage('en')">
+                <span class="label">🇬🇧 English</span>
+                <span class="icon" id="lang-check-en"></span>
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <div class="settings-section-title" data-i18n="theme_title">🎨 Ko'rinish</div>
+            <div class="settings-row" onclick="setTheme('light')">
+                <span class="label" data-i18n="theme_light">☀️ Yorug'</span>
+                <span class="icon" id="theme-check-light"></span>
+            </div>
+            <div class="settings-row" onclick="setTheme('dark')">
+                <span class="label" data-i18n="theme_dark">🌙 Qorong'u</span>
+                <span class="icon" id="theme-check-dark"></span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Translations
+        const translations = {
+            uz: {
+                title: "ROYAL BARBER",
+                visit_site: "🌐 Saytga o'tish",
+                choose_zone: "🪑 Zonani tanlang",
+                choose_service: "✂️ Xizmatni tanlang",
+                choose_barber: "👨🔧 Ustani tanlang",
+                choose_date_time: "📅 Sana va Vaqtni tanlang",
+                select_date_first: "Iltimos, oldin sanani tanlang",
+                confirm_booking: "📋 Navbatni tasdiqlash",
+                sum_zone: "Zona",
+                sum_service: "Xizmat",
+                sum_barber: "Usta",
+                sum_date: "Sana",
+                sum_time: "Vaqt",
+                sum_payment_status: "To'lov holati",
+                status_pending: "Kutilmoqda",
+                status_not_required: "Talab etilmaydi",
+                sum_total: "Jami narx",
+                success_title: "Muvaffaqiyatli!",
+                success_msg: "Navbatingiz muvaffaqiyatli band qilindi. Sizni belgilangan vaqtda kutamiz!",
+                btn_back: "Orqaga",
+                btn_next: "Davom etish",
+                settings_title: "⚙️ Sozlamalar",
+                language_title: "🌐 Til",
+                theme_title: "🎨 Ko'rinish",
+                theme_light: "☀️ Yorug'",
+                theme_dark: "🌙 Qorong'u",
+                free: "Bepul",
+                day_closed: "😴 Yakshanba - dam olish kuni",
+                no_slots_found: "Ushbu sana uchun bo'sh vaqtlar qolmagan.",
+                fetch_error: "⚠️ Vaqtlarni yuklab bo'lmadi.",
+                retry: "🔄 Qayta urinish",
+                status_available: "🟢 Bo'sh",
+                status_booked: "🔴 Band",
+                status_past: "🔒 O'tgan",
+                days: ['Yak', 'Dus', 'Sei', 'Cho', 'Pay', 'Jum', 'Sha'],
+                hello: "Salom"
+            },
+            ru: {
+                title: "ROYAL BARBER",
+                visit_site: "🌐 На сайт",
+                choose_zone: "🪑 Выберите зону",
+                choose_service: "✂️ Выберите услугу",
+                choose_barber: "👨🔧 Выберите мастера",
+                choose_date_time: "📅 Выберите дату и время",
+                select_date_first: "Пожалуйста, сначала выберите дату",
+                confirm_booking: "📋 Подтверждение записи",
+                sum_zone: "Зона",
+                sum_service: "Услуга",
+                sum_barber: "Мастер",
+                sum_date: "Дата",
+                sum_time: "Время",
+                sum_payment_status: "Статус оплаты",
+                status_pending: "Ожидается",
+                status_not_required: "Не требуется",
+                sum_total: "Итоговая цена",
+                success_title: "Успешно!",
+                success_msg: "Ваша запись успешно подтверждена. Ждем вас в назначенное время!",
+                btn_back: "Назад",
+                btn_next: "Продолжить",
+                settings_title: "⚙️ Настройки",
+                language_title: "🌐 Язык",
+                theme_title: "🎨 Тема",
+                theme_light: "☀️ Светлая",
+                theme_dark: "🌙 Темная",
+                free: "Бесплатно",
+                day_closed: "😴 Воскресенье - выходной",
+                no_slots_found: "На эту дату нет свободного времени.",
+                fetch_error: "⚠️ Не удалось загрузить время.",
+                retry: "🔄 Повторить",
+                status_available: "🟢 Свободно",
+                status_booked: "🔴 Занято",
+                status_past: "🔒 Прошло",
+                days: ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'],
+                hello: "Здравствуйте"
+            },
+            en: {
+                title: "ROYAL BARBER",
+                visit_site: "🌐 Visit Website",
+                choose_zone: "🪑 Choose a zone",
+                choose_service: "✂️ Choose a service",
+                choose_barber: "👨🔧 Choose a barber",
+                choose_date_time: "📅 Choose date & time",
+                select_date_first: "Please select a date first",
+                confirm_booking: "📋 Confirm booking",
+                sum_zone: "Zone",
+                sum_service: "Service",
+                sum_barber: "Barber",
+                sum_date: "Date",
+                sum_time: "Time",
+                sum_payment_status: "Payment status",
+                status_pending: "Pending",
+                status_not_required: "Not required",
+                sum_total: "Total price",
+                success_title: "Success!",
+                success_msg: "Your appointment is confirmed. We look forward to seeing you!",
+                btn_back: "Back",
+                btn_next: "Continue",
+                settings_title: "⚙️ Settings",
+                language_title: "🌐 Language",
+                theme_title: "🎨 Theme",
+                theme_light: "☀️ Light",
+                theme_dark: "🌙 Dark",
+                free: "Free",
+                day_closed: "😴 Sunday is closed",
+                no_slots_found: "No available time slots for this date.",
+                fetch_error: "⚠️ Failed to load times.",
+                retry: "🔄 Retry",
+                status_available: "🟢 Available",
+                status_booked: "🔴 Booked",
+                status_past: "🔒 Past",
+                days: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+                hello: "Hello"
+            }
+        };
+
+        // Init Telegram WebApp
+        const tg = window.Telegram.WebApp;
+        tg.expand(); // Fullscreen app
+        
+        // Settings State
+        let currentLang = localStorage.getItem('lang') || 'uz';
+        let currentTheme = localStorage.getItem('theme');
+        if (!currentTheme) {
+            currentTheme = tg.colorScheme === 'dark' ? 'dark' : 'light';
+        }
+
+        function setLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('lang', lang);
+            
+            // Update UI checks
+            document.querySelectorAll('[id^="lang-check-"]').forEach(el => el.innerText = '');
+            document.getElementById(`lang-check-${lang}`).innerText = '✓';
+            
+            // Translate all data-i18n elements
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (translations[lang][key]) {
+                    el.innerText = translations[lang][key];
+                }
+            });
+            
+            // Re-render greeting if user is defined
+            if (window.currentUser && window.currentUser.first_name) {
+                document.getElementById('user-greeting').innerText = `${translations[currentLang].hello}, ${currentUser.first_name}!`;
+            }
+            
+            // Re-render dates if view 4 is active
+            if (currentStep >= 4) {
+                renderDates();
+            }
+            if (currentStep === 5) {
+                prepareSummary();
+            }
+        }
+
+        function setTheme(theme) {
+            currentTheme = theme;
+            localStorage.setItem('theme', theme);
+            document.body.className = `theme-${theme}`;
+            
+            document.querySelectorAll('[id^="theme-check-"]').forEach(el => el.innerText = '');
+            document.getElementById(`theme-check-${theme}`).innerText = '✓';
+        }
+
+        // Initialize Theme & Lang
+        setTheme(currentTheme);
+        
+        // Modal Logic
+        document.getElementById('btn-settings').addEventListener('click', () => {
+            document.getElementById('settings-modal').classList.add('active');
+        });
+        document.getElementById('btn-close-settings').addEventListener('click', () => {
+            document.getElementById('settings-modal').classList.remove('active');
+        });
+
+        // Global State variables
+        let currentUser = {
+            telegram_id: 123456, // fallback dev id
+            first_name: "Mehmon",
+            last_name: "",
+            username: ""
+        };
+
+        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+            currentUser = {
+                telegram_id: tg.initDataUnsafe.user.id,
+                first_name: tg.initDataUnsafe.user.first_name || "Mijoz",
+                last_name: tg.initDataUnsafe.user.last_name || "",
+                username: tg.initDataUnsafe.user.username || ""
+            };
+        }
+        
+        let currentStep = 1;
+        // Apply translations on load
+        setLanguage(currentLang);
+
+        let selectedZone = null;
+        let selectedService = null;
+        let selectedBarber = null;
+        let selectedDate = null;
+        let selectedTime = null;
+
+        // Fetch data
+        let servicesData = [];
+        let barbersData = [];
+
+        // Elements
+        const btnNext = document.getElementById('btn-next');
+        const btnBack = document.getElementById('btn-back');
+        const stepsNodes = document.querySelectorAll('.step-node');
+        const progressLine = document.getElementById('progress-line');
+
+        // Step managers
+        function setStep(step) {
+            currentStep = step;
+
+            // Hide/Show views
+            for(let i=1; i<=5; i++) {
+                const view = document.getElementById(`view-${i}`);
+                if (i === step) view.classList.add('active');
+                else view.classList.remove('active');
+            }
+
+            // Update node classes
+            stepsNodes.forEach(node => {
+                const nodeStep = parseInt(node.getAttribute('data-step'));
+                if (nodeStep === step) {
+                    node.className = 'step-node active';
+                } else if (nodeStep < step) {
+                    node.className = 'step-node completed';
+                } else {
+                    node.className = 'step-node';
+                }
+            });
+
+            // Update progress line width
+            const progressWidths = { 1: '0%', 2: '25%', 3: '50%', 4: '75%', 5: '100%' };
+            progressLine.style.width = progressWidths[step];
+
+            // Buttons check
+            if (step === 1) {
+                btnBack.style.display = 'none';
+                btnNext.innerText = 'Davom etish';
+                validateStep();
+            } else {
+                btnBack.style.display = 'block';
+                if (step === 5) {
+                    btnNext.innerText = 'Tasdiqlash';
+                    prepareSummary();
+                } else {
+                    btnNext.innerText = 'Davom etish';
+                }
+                validateStep();
+            }
+        }
+
+        function validateStep() {
+            let isValid = false;
+            if (currentStep === 1 && selectedZone !== null) isValid = true;
+            if (currentStep === 2 && selectedService !== null) isValid = true;
+            if (currentStep === 3 && selectedBarber !== null) isValid = true;
+            if (currentStep === 4 && selectedDate !== null && selectedTime !== null) isValid = true;
+            if (currentStep === 5) isValid = true; // confirmation step is always valid
+            
+            btnNext.disabled = !isValid;
+            
+            if (currentStep === 1) {
+                btnNext.innerText = isValid ? 'Davom etish' : 'Avval zonani tanlang';
+            }
+        }
+
+        // Navigation actions
+        btnNext.addEventListener('click', () => {
+            if (currentStep < 5) {
+                setStep(currentStep + 1);
+            } else {
+                submitBooking();
+            }
+        });
+
+        btnBack.addEventListener('click', () => {
+            if (currentStep > 1) {
+                setStep(currentStep - 1);
+            }
+        });
+
+        
+        // Step 1: Load Zones
+        async function loadZones() {
+            const container = document.getElementById('zones-container');
+            const loading = document.getElementById('zones-loading');
+            loading.style.display = 'block';
+            loading.innerHTML = '<div class="spinner"></div>';
+            container.innerHTML = '';
+            
+            try {
+                const response = await fetch('/api/zones/');
+                if (!response.ok) throw new Error("Server xatosi: " + response.status);
+                const data = await response.json();
+                
+                loading.style.display = 'none';
+
+                if (data.zones && data.zones.length > 0) {
+                    data.zones.forEach(zone => {
+                        const card = document.createElement('div');
+                        card.className = 'card';
+                        card.dataset.id = zone.id;
+                        card.innerHTML = `
+                            <div class="card-left">
+                                <div class="card-icon">${zone.icon}</div>
+                                <div class="card-info">
+                                    <span class="card-name">${zone.name}</span>
+                                    <span class="card-desc">${zone.description}</span>
+                                </div>
+                            </div>
+                            <div class="card-right">
+                            <span class="card-price">${zone.price > 0 ? zone.price.toLocaleString() + ' UZS' : translations[currentLang].free}</span>
+                        </div>
+                        `;
+                        card.addEventListener('click', () => {
+                            selectedZone = zone;
+                            document.querySelectorAll('#zones-container .card').forEach(c => c.classList.remove('selected'));
+                            card.classList.add('selected');
+                            validateStep();
+                        });
+                        container.appendChild(card);
+                    });
+                } else {
+                    loading.style.display = 'block';
+                    loading.innerHTML = `<p style='color: var(--hint-color); text-align: center;'>Hozircha zonalar mavjud emas.</p>`;
+                }
+            } catch (err) {
+                console.error("Zones fetch error:", err);
+                loading.style.display = 'block';
+                loading.innerHTML = `
+                    <div style="text-align: center; color: #ff6b6b; padding: 20px;">
+                        <p style="margin-bottom: 12px; font-size: 16px;">${translations[currentLang].fetch_error}</p>
+                        <button class="btn-primary" onclick="loadZones()" style="width: auto; padding: 8px 16px; font-size: 14px; min-height: 40px;">${translations[currentLang].retry}</button>
+                    </div>
+                `;
+            }
+        }
+
+        // Step 2: Load Services
+        async function loadServices() {
+            try {
+                const response = await fetch('/api/services/');
+                const data = await response.json();
+                servicesData = data.services;
+                
+                document.getElementById('services-loading').style.display = 'none';
+                const container = document.getElementById('services-container');
+                container.innerHTML = '';
+
+                servicesData.forEach(service => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.dataset.id = service.id;
+                    card.innerHTML = `
+                        <div class="card-left">
+                            <div class="card-icon">${service.icon}</div>
+                            <div class="card-info">
+                                <span class="card-name">${service.name}</span>
+                                <span class="card-desc">⌛ ${service.duration_minutes} daqiqa</span>
+                            </div>
+                        </div>
+                        <div class="card-right">
+                            <span class="card-price">${service.price.toLocaleString()} UZS</span>
+                        </div>
+                    `;
+                    card.addEventListener('click', () => selectService(service, card));
+                    container.appendChild(card);
+                });
+            } catch (err) {
+                console.error("Services fetch error:", err);
+            }
+        }
+
+        function selectService(service, element) {
+            selectedService = service;
+            document.querySelectorAll('#services-container .card').forEach(c => c.classList.remove('selected'));
+            element.classList.add('selected');
+            validateStep();
+        }
+
+        // Step 2: Load Barbers
+        async function loadBarbers() {
+            try {
+                const response = await fetch('/api/barbers/');
+                const data = await response.json();
+                barbersData = data.barbers;
+
+                document.getElementById('barbers-loading').style.display = 'none';
+                const container = document.getElementById('barbers-container');
+                container.innerHTML = '';
+
+                barbersData.forEach(barber => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.dataset.id = barber.id;
+                    card.innerHTML = `
+                        <div class="card-left">
+                            <img src="${barber.photo_url}" class="card-img" alt="${barber.name}">
+                            <div class="card-info">
+                                <span class="card-name">${barber.name}</span>
+                                <span class="card-desc">${barber.specialty}</span>
+                            </div>
+                        </div>
+                        <div class="card-right">
+                            <span class="card-rating">⭐ ${barber.rating}</span>
+                        </div>
+                    `;
+                    card.addEventListener('click', () => selectBarber(barber, card));
+                    container.appendChild(card);
+                });
+            } catch (err) {
+                console.error("Barbers fetch error:", err);
+            }
+        }
+
+        function selectBarber(barber, element) {
+            selectedBarber = barber;
+            document.querySelectorAll('#barbers-container .card').forEach(c => c.classList.remove('selected'));
+            element.classList.add('selected');
+            
+            // Reset Date/Time since barber changed
+            selectedDate = null;
+            selectedTime = null;
+            renderDates();
+            document.getElementById('slots-container').innerHTML = '<div class="no-slots">Iltimos, oldin sanani tanlang</div>';
+            validateStep();
+        }
+
+        // Step 3: Calendar & Slots
+        function renderDates() {
+            const container = document.getElementById('dates-container');
+            container.innerHTML = '';
+
+            const daysLocal = translations[currentLang].days;
+            const today = new Date();
+
+            for (let i = 0; i < 7; i++) {
+                const futureDate = new Date();
+                futureDate.setDate(today.getDate() + i);
+
+                const dateStr = futureDate.toISOString().split('T')[0];
+                const dayNum = futureDate.getDate();
+                const dayName = daysLocal[futureDate.getDay()];
+                const isSunday = futureDate.getDay() === 0;
+
+                const btn = document.createElement('div');
+                btn.className = 'date-btn';
+                if (selectedDate === dateStr) btn.classList.add('selected');
+                
+                if (isSunday) {
+                    btn.classList.add('disabled');
+                    btn.style.opacity = '0.4';
+                }
+                
+                btn.innerHTML = `
+                    <span class="date-day-num">${dayNum}</span>
+                    <span class="date-day-name">${dayName}</span>
+                `;
+
+                if (!isSunday) {
+                    btn.addEventListener('click', () => {
+                        selectedDate = dateStr;
+                        document.querySelectorAll('#dates-container .date-btn').forEach(b => b.classList.remove('selected'));
+                        btn.classList.add('selected');
+                        loadAvailableSlots(dateStr);
+                        selectedTime = null;
+                        validateStep();
+                    });
+                } else {
+                    btn.addEventListener('click', () => {
+                        document.getElementById('slots-container').innerHTML = `<div class="no-slots">${translations[currentLang].day_closed}</div>`;
+                        selectedDate = null;
+                        selectedTime = null;
+                        validateStep();
+                    });
+                }
+
+                container.appendChild(btn);
+            }
+        }
+
+        async function loadAvailableSlots(dateStr) {
+            if (!selectedBarber || !selectedZone || !selectedService) return;
+            const slotsContainer = document.getElementById('slots-container');
+            slotsContainer.innerHTML = '<div class="spinner"></div>';
+
+            try {
+                const response = await fetch(`/api/available-slots/?barber_id=${selectedBarber.id}&zone_id=${selectedZone.id}&service_id=${selectedService.id}&date=${dateStr}`);
+                if (!response.ok) throw new Error("Server error");
+                const data = await response.json();
+                
+                slotsContainer.innerHTML = '';
+                
+                if (data.closed) {
+                    slotsContainer.innerHTML = `<div class="no-slots">${translations[currentLang].day_closed}</div>`;
+                    return;
+                }
+
+                if (data.slots && data.slots.length > 0) {
+                    data.slots.forEach(slot => {
+                        const slotBtn = document.createElement('div');
+                        slotBtn.className = 'time-slot';
+                        
+                        if (slot.available) {
+                            slotBtn.innerHTML = `${slot.time} <span style="font-size: 12px; display: block; margin-top: 4px;">${translations[currentLang].status_available}</span>`;
+                            if (selectedTime === slot.time) slotBtn.classList.add('selected');
+                            slotBtn.addEventListener('click', () => {
+                                selectedTime = slot.time;
+                                document.querySelectorAll('#slots-container .time-slot').forEach(s => s.classList.remove('selected'));
+                                slotBtn.classList.add('selected');
+                                validateStep();
+                            });
+                        } else {
+                            slotBtn.classList.add('disabled');
+                            if (slot.reason === 'past') {
+                                slotBtn.innerHTML = `${slot.time} <span style="font-size: 12px; display: block; margin-top: 4px;">${translations[currentLang].status_past}</span>`;
+                            } else {
+                                slotBtn.innerHTML = `${slot.time} <span style="font-size: 12px; display: block; margin-top: 4px;">${translations[currentLang].status_booked}</span>`;
+                            }
+                        }
+                        slotsContainer.appendChild(slotBtn);
+                    });
+                } else {
+                    slotsContainer.innerHTML = `<div class="no-slots">${translations[currentLang].no_slots_found}</div>`;
+                }
+            } catch (err) {
+                console.error("Slots fetch error:", err);
+                slotsContainer.innerHTML = `
+                    <div style="grid-column: span 4; text-align: center;">
+                        <p style="color: #ff6b6b; font-size: 14px; margin-bottom: 10px;">${translations[currentLang].fetch_error}</p>
+                        <button class="btn-secondary" onclick="loadAvailableSlots('${dateStr}')" style="padding: 6px 12px; font-size: 12px; display: inline-block;">${translations[currentLang].retry}</button>
+                    </div>
+                `;
+            }
+        }
+
+        function prepareSummary() {
+            document.getElementById('sum-zone').innerText = `${selectedZone.icon} ${selectedZone.name}`;
+            document.getElementById('sum-service').innerText = `${selectedService.icon} ${selectedService.name}`;
+            document.getElementById('sum-barber').innerText = selectedBarber.name;
+            document.getElementById('sum-date').innerText = selectedDate;
+            document.getElementById('sum-time').innerText = selectedTime;
+            
+            const total = selectedService.price + selectedZone.price;
+            document.getElementById('sum-price').innerText = total > 0 ? `${total.toLocaleString()} UZS` : translations[currentLang].free;
+            
+            const paymentEl = document.getElementById('sum-payment');
+            if (selectedZone.type === 'vip') {
+                paymentEl.innerText = `${translations[currentLang].status_pending} (Click)`;
+                paymentEl.style.color = '#ffc107'; // Yellow
+            } else {
+                paymentEl.innerText = translations[currentLang].status_not_required;
+                paymentEl.style.color = '#4cd137'; // Green
+            }
+        }
+
+        // Submit to API
+        async function submitBooking() {
+            const payload = {
+                telegram_id: currentUser.telegram_id,
+                first_name: currentUser.first_name,
+                last_name: currentUser.last_name,
+                username: currentUser.username,
+                barber_id: selectedBarber.id,
+                zone_id: selectedZone.id,
+                service_id: selectedService.id,
+                date: selectedDate,
+                time_slot: selectedTime,
+                lang: currentLang
+            };
+
+            btnNext.disabled = true;
+            btnNext.innerText = '...';
+
+            try {
+                const response = await fetch('/api/book/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    // Hide Header, Steps, Navigation buttons
+                    document.querySelector('header').style.display = 'none';
+                    document.getElementById('steps-indicator').style.display = 'none';
+                    document.getElementById('view-5').classList.remove('active');
+                    document.getElementById('navigation-buttons').style.display = 'none';
+
+                    // Show success
+                    document.getElementById('success-view').style.display = 'flex';
+                    
+                    // Automatically inform telegram
+                    setTimeout(() => {
+                        tg.close();
+                    }, 4000);
+                } else {
+                    alert(data.error || 'Nimadir xato ketdi, qaytadan urinib ko\'ring.');
+                    btnNext.disabled = false;
+                    btnNext.innerText = 'Tasdiqlash';
+                }
+            } catch (err) {
+                console.error("Submit error:", err);
+                alert('Serverga ulanishda xatolik yuz berdi.');
+                btnNext.disabled = false;
+                btnNext.innerText = 'Tasdiqlash';
+            }
+        }
+
+        // Initialize lists
+        loadZones();
+        loadServices();
+        loadBarbers();
+        renderDates();
+        setStep(1);
+
+    </script>
+</body>
+</html>
