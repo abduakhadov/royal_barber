@@ -5,3 +5,7 @@ __pycache__/
 *.pyc
 .idea/
 .vscode/
+.env
+node_modules/
+__pycache__/
+venv/
