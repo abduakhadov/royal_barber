@@ -707,7 +707,7 @@
         <button type="button" onclick="openOfficialSite()" class="site-link-btn" data-i18n="visit_site">🌐 Rasmiy saytga o'tish</button>
     </header>
 
-    <!-- Steps Indicator -->
+    <!-- Steps Indicator (4 Steps matching website) -->
     <div class="steps-container" id="steps-indicator">
         <div class="steps-line"></div>
         <div class="steps-line-progress" id="progress-line"></div>
@@ -715,34 +715,24 @@
         <div class="step-node" data-step="2">2</div>
         <div class="step-node" data-step="3">3</div>
         <div class="step-node" data-step="4">4</div>
-        <div class="step-node" data-step="5">5</div>
     </div>
 
-
-
-    <!-- VIEW 1: Zone Selection -->
+    <!-- VIEW 1: Service Selection -->
     <section class="view-section active" id="view-1">
-        <h2 class="section-title" data-i18n="choose_zone">🪑 Zonani tanlang</h2>
-        <div id="zones-loading" class="spinner"></div>
-        <div class="service-list" id="zones-container"></div>
-    </section>
-
-    <!-- VIEW 2: Service Selection -->
-    <section class="view-section" id="view-2">
         <h2 class="section-title" data-i18n="choose_service">✂️ Xizmatni tanlang</h2>
         <div id="services-loading" class="spinner"></div>
         <div class="service-list" id="services-container"></div>
     </section>
 
     <!-- VIEW 2: Barber Selection -->
-    <section class="view-section" id="view-3">
-        <h2 class="section-title" data-i18n="choose_barber">👨🔧 Ustani tanlang</h2>
+    <section class="view-section" id="view-2">
+        <h2 class="section-title" data-i18n="choose_barber">👨‍🎨 Ustani tanlang</h2>
         <div id="barbers-loading" class="spinner"></div>
         <div class="barber-list" id="barbers-container"></div>
     </section>
 
     <!-- VIEW 3: Date & Time Selection -->
-    <section class="view-section" id="view-4">
+    <section class="view-section" id="view-3">
         <h2 class="section-title" data-i18n="choose_date_time">📅 Sana va Vaqtni tanlang</h2>
         <div class="calendar-container">
             <div class="date-slider" id="dates-container"></div>
@@ -753,37 +743,28 @@
     </section>
 
     <!-- VIEW 4: Confirmation Summary -->
-    <section class="view-section" id="view-5">
+    <section class="view-section" id="view-4">
         <h2 class="section-title" data-i18n="confirm_booking">📋 Navbatni tasdiqlash</h2>
         <div class="summary-card">
-            
             <div class="summary-row">
-                <span class="summary-label" data-i18n="sum_zone">Zona</span>
-                <span class="summary-value" id="sum-zone">-</span>
-            </div>
-            <div class="summary-row">
-                <span class="summary-label" data-i18n="sum_service">Xizmat</span>
+                <span class="summary-label" data-i18n="sum_service">✂️ Xizmat</span>
                 <span class="summary-value" id="sum-service">-</span>
             </div>
             <div class="summary-row">
-                <span class="summary-label" data-i18n="sum_barber">Usta</span>
+                <span class="summary-label" data-i18n="sum_barber">👨‍🎨 Usta</span>
                 <span class="summary-value" id="sum-barber">-</span>
             </div>
             <div class="summary-row">
-                <span class="summary-label" data-i18n="sum_date">Sana</span>
+                <span class="summary-label" data-i18n="sum_date">📅 Sana</span>
                 <span class="summary-value" id="sum-date">-</span>
             </div>
             <div class="summary-row">
-                <span class="summary-label" data-i18n="sum_time">Vaqt</span>
+                <span class="summary-label" data-i18n="sum_time">🕐 Vaqt</span>
                 <span class="summary-value" id="sum-time">-</span>
             </div>
-            <div class="summary-row">
-                <span class="summary-label" data-i18n="sum_payment_status">To'lov holati</span>
-                <span class="summary-value" id="sum-payment" style="color: #ffc107;" data-i18n="status_pending">Kutilmoqda</span>
-            </div>
-            <div class="summary-row">
-                <span class="summary-label" data-i18n="sum_total">Jami narx</span>
-                <span class="summary-value total-price" id="sum-price">0 UZS</span>
+            <div class="summary-row" style="border-top: 1px solid rgba(212, 175, 55, 0.2); padding-top: 14px; margin-top: 6px;">
+                <span class="summary-label" style="color: var(--gold); font-weight: 700;" data-i18n="sum_total">💰 Jami narx</span>
+                <span class="summary-value total-price" id="sum-price">0 so'm</span>
             </div>
         </div>
     </section>
@@ -1056,7 +1037,6 @@
         // Apply translations on load
         setLanguage(currentLang);
 
-        let selectedZone = null;
         let selectedService = null;
         let selectedBarber = null;
         let selectedDate = null;
@@ -1072,15 +1052,17 @@
         const stepsNodes = document.querySelectorAll('.step-node');
         const progressLine = document.getElementById('progress-line');
 
-        // Step managers
+        // Step managers (4 steps)
         function setStep(step) {
             currentStep = step;
 
             // Hide/Show views
-            for(let i=1; i<=5; i++) {
+            for(let i=1; i<=4; i++) {
                 const view = document.getElementById(`view-${i}`);
-                if (i === step) view.classList.add('active');
-                else view.classList.remove('active');
+                if (view) {
+                    if (i === step) view.classList.add('active');
+                    else view.classList.remove('active');
+                }
             }
 
             // Update node classes
@@ -1095,9 +1077,9 @@
                 }
             });
 
-            // Update progress line width
-            const progressWidths = { 1: '0%', 2: '25%', 3: '50%', 4: '75%', 5: '100%' };
-            progressLine.style.width = progressWidths[step];
+            // Update progress line width (4 steps: 0%, 33%, 66%, 100%)
+            const progressWidths = { 1: '0%', 2: '33%', 3: '66%', 4: '100%' };
+            progressLine.style.width = progressWidths[step] || '0%';
 
             // Buttons check
             if (step === 1) {
@@ -1106,7 +1088,7 @@
                 validateStep();
             } else {
                 btnBack.style.display = 'block';
-                if (step === 5) {
+                if (step === 4) {
                     btnNext.innerText = 'Tasdiqlash';
                     prepareSummary();
                 } else {
@@ -1118,22 +1100,25 @@
 
         function validateStep() {
             let isValid = false;
-            if (currentStep === 1 && selectedZone !== null) isValid = true;
-            if (currentStep === 2 && selectedService !== null) isValid = true;
-            if (currentStep === 3 && selectedBarber !== null) isValid = true;
-            if (currentStep === 4 && selectedDate !== null && selectedTime !== null) isValid = true;
-            if (currentStep === 5) isValid = true; // confirmation step is always valid
+            if (currentStep === 1 && selectedService !== null) isValid = true;
+            if (currentStep === 2 && selectedBarber !== null) isValid = true;
+            if (currentStep === 3 && selectedDate !== null && selectedTime !== null) isValid = true;
+            if (currentStep === 4) isValid = true; // confirmation step
             
             btnNext.disabled = !isValid;
             
             if (currentStep === 1) {
-                btnNext.innerText = isValid ? 'Davom etish' : 'Avval zonani tanlang';
+                btnNext.innerText = isValid ? 'Davom etish' : 'Xizmatni tanlang';
+            } else if (currentStep === 2) {
+                btnNext.innerText = isValid ? 'Davom etish' : 'Ustani tanlang';
+            } else if (currentStep === 3) {
+                btnNext.innerText = isValid ? 'Davom etish' : 'Vaqtni tanlang';
             }
         }
 
         // Navigation actions
         btnNext.addEventListener('click', () => {
-            if (currentStep < 5) {
+            if (currentStep < 4) {
                 setStep(currentStep + 1);
             } else {
                 submitBooking();
@@ -1146,64 +1131,7 @@
             }
         });
 
-        
-        // Step 1: Load Zones
-        async function loadZones() {
-            const container = document.getElementById('zones-container');
-            const loading = document.getElementById('zones-loading');
-            loading.style.display = 'block';
-            loading.innerHTML = '<div class="spinner"></div>';
-            container.innerHTML = '';
-            
-            try {
-                const response = await fetch('/api/zones/');
-                if (!response.ok) throw new Error("Server xatosi: " + response.status);
-                const data = await response.json();
-                
-                loading.style.display = 'none';
-
-                if (data.zones && data.zones.length > 0) {
-                    data.zones.forEach(zone => {
-                        const card = document.createElement('div');
-                        card.className = 'card';
-                        card.dataset.id = zone.id;
-                        card.innerHTML = `
-                            <div class="card-left">
-                                <div class="card-icon">${zone.icon}</div>
-                                <div class="card-info">
-                                    <span class="card-name">${zone.name}</span>
-                                    <span class="card-desc">${zone.description}</span>
-                                </div>
-                            </div>
-                            <div class="card-right">
-                            <span class="card-price">${zone.price > 0 ? zone.price.toLocaleString() + ' UZS' : translations[currentLang].free}</span>
-                        </div>
-                        `;
-                        card.addEventListener('click', () => {
-                            selectedZone = zone;
-                            document.querySelectorAll('#zones-container .card').forEach(c => c.classList.remove('selected'));
-                            card.classList.add('selected');
-                            validateStep();
-                        });
-                        container.appendChild(card);
-                    });
-                } else {
-                    loading.style.display = 'block';
-                    loading.innerHTML = `<p style='color: var(--hint-color); text-align: center;'>Hozircha zonalar mavjud emas.</p>`;
-                }
-            } catch (err) {
-                console.error("Zones fetch error:", err);
-                loading.style.display = 'block';
-                loading.innerHTML = `
-                    <div style="text-align: center; color: #ff6b6b; padding: 20px;">
-                        <p style="margin-bottom: 12px; font-size: 16px;">${translations[currentLang].fetch_error}</p>
-                        <button class="btn-primary" onclick="loadZones()" style="width: auto; padding: 8px 16px; font-size: 14px; min-height: 40px;">${translations[currentLang].retry}</button>
-                    </div>
-                `;
-            }
-        }
-
-        // Step 2: Load Services
+        // Step 1: Load Services
         async function loadServices() {
             try {
                 const response = await fetch('/api/services/');
@@ -1223,11 +1151,11 @@
                             <div class="card-icon">${service.icon}</div>
                             <div class="card-info">
                                 <span class="card-name">${service.name}</span>
-                                <span class="card-desc">⌛ ${service.duration_minutes} daqiqa</span>
+                                <span class="card-desc">⏱ ${service.duration_minutes} daqiqa</span>
                             </div>
                         </div>
                         <div class="card-right">
-                            <span class="card-price">${service.price.toLocaleString()} UZS</span>
+                            <span class="card-price">${service.price.toLocaleString()} so'm</span>
                         </div>
                     `;
                     card.addEventListener('click', () => selectService(service, card));
@@ -1235,6 +1163,12 @@
                 });
             } catch (err) {
                 console.error("Services fetch error:", err);
+                document.getElementById('services-loading').innerHTML = `
+                    <div style="text-align: center; color: #ff6b6b; padding: 20px;">
+                        <p style="margin-bottom: 12px;">${translations[currentLang].fetch_error}</p>
+                        <button class="btn-primary" onclick="loadServices()" style="width: auto; padding: 8px 16px;">${translations[currentLang].retry}</button>
+                    </div>
+                `;
             }
         }
 
@@ -1269,7 +1203,7 @@
                             </div>
                         </div>
                         <div class="card-right">
-                            <span class="card-rating">⭐ ${barber.rating}</span>
+                            <span class="card-rating">★ ${barber.rating}</span>
                         </div>
                     `;
                     card.addEventListener('click', () => selectBarber(barber, card));
@@ -1347,12 +1281,12 @@
         }
 
         async function loadAvailableSlots(dateStr) {
-            if (!selectedBarber || !selectedZone || !selectedService) return;
+            if (!selectedBarber || !selectedService) return;
             const slotsContainer = document.getElementById('slots-container');
             slotsContainer.innerHTML = '<div class="spinner"></div>';
 
             try {
-                const response = await fetch(`/api/available-slots/?barber_id=${selectedBarber.id}&zone_id=${selectedZone.id}&service_id=${selectedService.id}&date=${dateStr}`);
+                const response = await fetch(`/api/available-slots/?barber_id=${selectedBarber.id}&service_id=${selectedService.id}&date=${dateStr}`);
                 if (!response.ok) throw new Error("Server error");
                 const data = await response.json();
                 
@@ -1402,23 +1336,13 @@
         }
 
         function prepareSummary() {
-            document.getElementById('sum-zone').innerText = `${selectedZone.icon} ${selectedZone.name}`;
             document.getElementById('sum-service').innerText = `${selectedService.icon} ${selectedService.name}`;
             document.getElementById('sum-barber').innerText = selectedBarber.name;
             document.getElementById('sum-date').innerText = selectedDate;
             document.getElementById('sum-time').innerText = selectedTime;
             
-            const total = selectedService.price + selectedZone.price;
-            document.getElementById('sum-price').innerText = total > 0 ? `${total.toLocaleString()} UZS` : translations[currentLang].free;
-            
-            const paymentEl = document.getElementById('sum-payment');
-            if (selectedZone.type === 'vip') {
-                paymentEl.innerText = `${translations[currentLang].status_pending} (Click)`;
-                paymentEl.style.color = '#ffc107'; // Yellow
-            } else {
-                paymentEl.innerText = translations[currentLang].status_not_required;
-                paymentEl.style.color = '#4cd137'; // Green
-            }
+            const total = selectedService.price;
+            document.getElementById('sum-price').innerText = `${total.toLocaleString()} so'm`;
         }
 
         // Submit to API
@@ -1429,7 +1353,6 @@
                 last_name: currentUser.last_name,
                 username: currentUser.username,
                 barber_id: selectedBarber.id,
-                zone_id: selectedZone.id,
                 service_id: selectedService.id,
                 date: selectedDate,
                 time_slot: selectedTime,
@@ -1437,7 +1360,7 @@
             };
 
             btnNext.disabled = true;
-            btnNext.innerText = '...';
+            btnNext.innerText = 'Band qilinmoqda...';
 
             try {
                 const response = await fetch('/api/book/', {
@@ -1453,16 +1376,18 @@
                     // Hide Header, Steps, Navigation buttons
                     document.querySelector('header').style.display = 'none';
                     document.getElementById('steps-indicator').style.display = 'none';
-                    document.getElementById('view-5').classList.remove('active');
+                    document.getElementById('view-4').classList.remove('active');
                     document.getElementById('navigation-buttons').style.display = 'none';
 
                     // Show success
                     document.getElementById('success-view').style.display = 'flex';
                     
-                    // Automatically inform telegram
+                    // Automatically close telegram webapp after 4s
                     setTimeout(() => {
-                        tg.close();
-                    }, 4000);
+                        if (tg && typeof tg.close === 'function') {
+                            tg.close();
+                        }
+                    }, 3500);
                 } else {
                     alert(data.error || 'Nimadir xato ketdi, qaytadan urinib ko\'ring.');
                     btnNext.disabled = false;
@@ -1477,7 +1402,6 @@
         }
 
         // Initialize lists
-        loadZones();
         loadServices();
         loadBarbers();
         renderDates();

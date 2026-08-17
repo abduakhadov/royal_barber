@@ -279,23 +279,16 @@ def my_bookings(message):
         
         b_name = html.escape(b.barber.name)
         s_name = html.escape(b.service.name)
-        
-        zone_info = ""
-        total_price = int(b.service.price)
-        if b.zone:
-            z_name = html.escape(b.zone.name)
-            zone_info = f"🪑 Zona: <b>{z_name}</b>\n"
-            total_price += int(b.zone.price)
+        total_price = int(b.service.price) + (int(b.zone.price) if b.zone else 0)
             
         text = (
+            f"👑 <b>ROYAL BARBER | Navbat:</b>\n"
             f"📅 Sana: <b>{b.date}</b>\n"
             f"🕐 Vaqt: <b>{b.time_slot.strftime('%H:%M')}</b>\n"
-            f"👨🔧 Usta: <b>{b_name}</b>\n"
+            f"👨‍🎨 Usta: <b>{b_name}</b>\n"
             f"✂️ Xizmat: <b>{s_name}</b>\n"
-            f"{zone_info}"
-            f"Jami Narxi: {total_price:,} UZS\n"
-            f"Holati: {status_emoji}\n"
-            f"To'lov: {pay_status}"
+            f"💰 Narxi: <b>{total_price:,} so'm</b>\n"
+            f"Holati: {status_emoji}"
         )
         
         markup = types.InlineKeyboardMarkup()

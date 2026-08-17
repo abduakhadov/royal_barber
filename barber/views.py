@@ -142,16 +142,21 @@ def get_available_slots(request):
             current_time += datetime.timedelta(minutes=30)
             continue
             
-        # Zona bandligini tekshirish (sig'imi bo'yicha)
-        zone_overlapping_count = Booking.objects.filter(
-            zone_id=zone_id,
-            date=date,
-            status__in=active_status
-        ).filter(overlap_q).count()
-        
-        if zone_overlapping_count >= zone.capacity:
-            slot_info['available'] = False
-            slot_info['reason'] = 'zone_full'
+        # Zona bandligini tekshirish (agar zona tanlangan bo'lsa)
+        if zone_id:
+            try:
+                zone = Zone.objects.get(id=zone_id)
+                zone_overlapping_count = Booking.objects.filter(
+                    zone_id=zone_id,
+                    date=date,
+                    status__in=active_status
+                ).filter(overlap_q).count()
+                
+                if zone_overlapping_count >= zone.capacity:
+                    slot_info['available'] = False
+                    slot_info['reason'] = 'zone_full'
+            except Zone.DoesNotExist:
+                pass
             
         all_slots.append(slot_info)
         current_time += datetime.timedelta(minutes=30)
@@ -176,7 +181,7 @@ def book_appointment(request):
         date_str = data.get('date')
         time_slot_str = data.get('time_slot')
 
-        if not all([tg_id, zone_id, barber_id, service_id, date_str, time_slot_str]):
+        if not all([tg_id, barber_id, service_id, date_str, time_slot_str]):
             return JsonResponse({'error': 'Hamma ma\'lumotlar to\'ldirilishi shart.'}, status=400)
             
         date = parse_date(date_str)
@@ -184,11 +189,11 @@ def book_appointment(request):
         
         with transaction.atomic():
             # Get objects
-            zone = Zone.objects.get(id=zone_id)
+            zone = Zone.objects.filter(id=zone_id).first() if zone_id else None
             barber = Barber.objects.get(id=barber_id)
             service = Service.objects.get(id=service_id)
             
-            # Double-booking tekshiruvi backendda (locking bilamiz, lekin db lock o'rniga qat'iy query qilamiz)
+            # Double-booking tekshiruvi backendda
             slot_start_dt = datetime.datetime.combine(date, time_slot)
             slot_end_dt = slot_start_dt + datetime.timedelta(minutes=service.duration_minutes)
             slot_end_time = slot_end_dt.time()
@@ -201,7 +206,7 @@ def book_appointment(request):
                 return JsonResponse({'error': 'Ushbu vaqt boshqa mijoz tomonidan band qilindi. Boshqa vaqt tanlang.'}, status=400)
                 
             # Zona to'lganmi?
-            if Booking.objects.filter(zone=zone, date=date, status__in=active_status).filter(overlap_q).count() >= zone.capacity:
+            if zone and Booking.objects.filter(zone=zone, date=date, status__in=active_status).filter(overlap_q).count() >= zone.capacity:
                 return JsonResponse({'error': 'Ushbu vaqtda zona to\'lgan. Boshqa vaqt tanlang.'}, status=400)
                 
             # Get or create customer
@@ -210,7 +215,7 @@ def book_appointment(request):
                 defaults={'first_name': first_name, 'last_name': last_name, 'username': username}
             )
             
-            booking_status = 'confirmed' if zone.type == 'ordinary' else 'pending'
+            booking_status = 'confirmed'
             
             booking = Booking.objects.create(
                 customer=customer,
@@ -226,14 +231,11 @@ def book_appointment(request):
             import requests
             bot_token = getattr(settings, 'TELEGRAM_BOT_TOKEN', None)
             if bot_token:
-                total_price = service.price + zone.price
+                total_price = service.price + (zone.price if zone else 0)
                 lang = data.get('lang', 'uz')
                 
                 # Format price safely based on language
-                if total_price == 0:
-                    price_str = 'Bepul' if lang == 'uz' else 'Бесплатно' if lang == 'ru' else 'Free'
-                else:
-                    price_str = f"{int(total_price):,} " + ("so'm" if lang == 'uz' else "сум" if lang == 'ru' else "UZS")
+                price_str = f"{int(total_price):,} " + ("so'm" if lang == 'uz' else "сум" if lang == 'ru' else "UZS")
 
                 if lang == 'ru':
                     text = (
@@ -241,33 +243,28 @@ def book_appointment(request):
                         f"📅 Дата: {booking.date}\n"
                         f"🕐 Время: {booking.time_slot.strftime('%H:%M')}\n"
                         f"✂️ Мастер: {booking.barber.name}\n"
-                        f"👑 Зона: {booking.zone.name}\n\n"
+                        f"✂️ Услуга: {booking.service.name}\n\n"
                         f"💰 Цена: {price_str}"
                     )
-                    pending_warn = "\n\n⚠️ <i>Пожалуйста, оплатите через бота. Неоплаченные записи будут отменены через 15 минут.</i>"
                 elif lang == 'en':
                     text = (
                         f"✅ <b>Your appointment is confirmed!</b>\n\n"
                         f"📅 Date: {booking.date}\n"
                         f"🕐 Time: {booking.time_slot.strftime('%H:%M')}\n"
                         f"✂️ Barber: {booking.barber.name}\n"
-                        f"👑 Zone: {booking.zone.name}\n\n"
+                        f"✂️ Service: {booking.service.name}\n\n"
                         f"💰 Price: {price_str}"
                     )
-                    pending_warn = "\n\n⚠️ <i>Please complete the payment via the bot. Unpaid bookings will be cancelled in 15 minutes.</i>"
                 else:
                     text = (
-                        f"✅ <b>Navbatingiz tasdiqlandi!</b>\n\n"
+                        f"👑 <b>ROYAL BARBER | Navbatingiz tasdiqlandi!</b>\n\n"
                         f"📅 Sana: {booking.date}\n"
                         f"🕐 Vaqt: {booking.time_slot.strftime('%H:%M')}\n"
-                        f"✂️ Usta: {booking.barber.name}\n"
-                        f"👑 Zona: {booking.zone.name}\n\n"
-                        f"💰 Narx: {price_str}"
+                        f"👨‍🎨 Usta: {booking.barber.name}\n"
+                        f"✂️ Xizmat: {booking.service.name}\n\n"
+                        f"💰 Narx: <b>{price_str}</b>\n\n"
+                        f"📍 <i>Toshkent shahri | Tel: +998 90 123 45 67</i>"
                     )
-                    pending_warn = "\n\n⚠️ <i>Iltimos, bot orqali to'lovni amalga oshiring. To'lanmagan navbatlar 15 daqiqadan so'ng bekor qilinadi.</i>"
-
-                if booking_status == 'pending':
-                    text += pending_warn
                 
                 url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
                 try:
@@ -281,6 +278,6 @@ def book_appointment(request):
             'message': 'Navbat muvaffaqiyatli band qilindi!'
         })
         
-    except (json.JSONDecodeError, Zone.DoesNotExist, Barber.DoesNotExist, Service.DoesNotExist) as e:
+    except (json.JSONDecodeError, Barber.DoesNotExist, Service.DoesNotExist) as e:
         return JsonResponse({'error': str(e)}, status=400)
 
