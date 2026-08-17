@@ -187,19 +187,35 @@
         }
 
         h1 {
-            font-size: 24px;
-            font-weight: 700;
-            letter-spacing: 1px;
+            font-size: 26px;
+            font-weight: 800;
+            letter-spacing: 2px;
             background: var(--gold-gradient);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             margin-bottom: 4px;
+            text-transform: uppercase;
+        }
+
+        .slogan-badge {
+            display: inline-block;
+            background: rgba(212, 175, 55, 0.12);
+            color: var(--gold);
+            border: 1px solid rgba(212, 175, 55, 0.35);
+            padding: 3px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            margin-bottom: 6px;
+            text-transform: uppercase;
         }
 
         .subtitle {
-            font-size: 14px;
+            font-size: 13px;
             color: var(--hint-color);
-            font-weight: 300;
+            font-weight: 400;
+            letter-spacing: 0.3px;
         }
 
         /* Steps Indicator */
@@ -685,10 +701,11 @@
         <div class="logo-container">
             <span class="logo-icon">💈</span>
         </div>
+        <div class="slogan-badge">👑 STYLE IS KING</div>
         <h1 data-i18n="title">ROYAL BARBER</h1>
-        <p class="subtitle" id="user-greeting">Xush kelibsiz!</p>
+        <p class="subtitle" id="user-greeting">Premium Sartaroshxona • Onlayn Bron</p>
         {% if external_website_url %}
-        <a href="{{ external_website_url }}" target="_blank" class="site-link-btn" data-i18n="visit_site">🌐 Saytga o'tish</a>
+        <a href="{{ external_website_url }}" target="_blank" class="site-link-btn" data-i18n="visit_site">🌐 Rasmiy saytga o'tish</a>
         {% endif %}
     </header>
 

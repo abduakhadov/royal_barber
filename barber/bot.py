@@ -21,10 +21,29 @@ logger = logging.getLogger(__name__)
 TOKEN = getattr(settings, 'TELEGRAM_BOT_TOKEN', 'YOUR_BOT_TOKEN')
 bot = telebot.TeleBot(TOKEN) if TOKEN != 'YOUR_BOT_TOKEN' else None
 
-def get_main_keyboard():
-    # As requested by the user, we no longer use a reply keyboard. 
-    # The 'Open' Menu Button is the primary way to interact.
-    return types.ReplyKeyboardRemove()
+def get_main_menu():
+    web_app_url = getattr(settings, 'MINI_APP_URL', 'http://127.0.0.1:8000/').strip()
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+    
+    # Agar HTTPS bo'lsa Mini App tugmasi
+    if web_app_url.startswith('https://'):
+        btn_app = types.KeyboardButton("💈 Mini Appda bron qilish", web_app=types.WebAppInfo(url=web_app_url))
+        markup.add(btn_app)
+    else:
+        btn_app = types.KeyboardButton("💈 Navbat olish")
+        markup.add(btn_app)
+        
+    btn_services = types.KeyboardButton("✂️ Xizmatlar")
+    btn_barbers = types.KeyboardButton("👨‍🎨 Ustalar")
+    btn_bookings = types.KeyboardButton("📋 Mening navbatim")
+    btn_payment = types.KeyboardButton("💳 To‘lov")
+    btn_about = types.KeyboardButton("ℹ️ Biz haqimizda")
+    btn_website = types.KeyboardButton("🌐 Rasmiy sayt")
+    
+    markup.add(btn_services, btn_barbers)
+    markup.add(btn_bookings, btn_payment)
+    markup.add(btn_about, btn_website)
+    return markup
 
 @bot.message_handler(commands=['start']) if bot else None
 def handle_start(message):
@@ -43,40 +62,28 @@ def handle_start(message):
             }
         )
         
-        # Agar telefon raqami bor bo'lsa — to'g'ridan-to'g'ri xush kelibsiz
         if customer.phone:
             send_welcome(message.chat.id, first_name)
         else:
-            # Telefon raqamini so'raymiz
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
             btn_phone = types.KeyboardButton("📱 Telefon raqamni ulashish", request_contact=True)
             markup.add(btn_phone)
             
+            welcome_auth = (
+                f"👑 <b>ROYAL BARBER</b> — <i>STYLE IS KING</i>\n"
+                f"━━━━━━━━━━━━━━━━━━━━\n"
+                f"👋 Salom, <b>{first_name}</b>!\n\n"
+                f"💈 <b>Royal Barber</b> premium sartaroshxonasining rasmiy botiga xush kelibsiz.\n\n"
+                f"🔐 Qulay va tez navbat olish uchun telefon raqamingizni tasdiqlang:"
+            )
             bot.send_message(
                 message.chat.id,
-                f"👋 Salom, <b>{first_name}</b>!\n\n"
-                "💈 Men <b>Royal Barber</b> botiman.\n\n"
-                "🔐 Tizimga kirish uchun telefon raqamingizni ulashing.\n\n"
-                "⚠️ <i>Raqamingiz faqat navbat olish uchun ishlatiladi.</i>",
+                welcome_auth,
                 parse_mode="HTML",
                 reply_markup=markup
             )
     except Exception as e:
         logger.error(f"Error in start command: {e}")
-
-def get_main_menu():
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
-    btn1 = types.KeyboardButton("📅 Navbat olish")
-    btn2 = types.KeyboardButton("✂️ Xizmatlar")
-    btn3 = types.KeyboardButton("👨🔧 Ustalar")
-    btn4 = types.KeyboardButton("📋 Mening navbatim")
-    btn5 = types.KeyboardButton("💳 To‘lov")
-    btn6 = types.KeyboardButton("ℹ️ Biz haqimizda")
-    markup.add(btn1)
-    markup.add(btn2, btn3)
-    markup.add(btn4, btn5)
-    markup.add(btn6)
-    return markup
 
 @bot.message_handler(content_types=['contact']) if bot else None
 def handle_contact(message):
@@ -86,7 +93,6 @@ def handle_contact(message):
             tg_id = message.from_user.id
             first_name = message.from_user.first_name or "Mijoz"
             
-            # Telefon raqamini saqlash
             customer, _ = Customer.objects.get_or_create(
                 telegram_id=tg_id,
                 defaults={'first_name': first_name}
@@ -96,65 +102,99 @@ def handle_contact(message):
             
             bot.send_message(
                 message.chat.id,
-                f"✅ Rahmat! Raqamingiz saqlandi: <b>{phone}</b>",
+                f"✅ Rahmat! Raqamingiz muvaffaqiyatli saqlandi: <b>{phone}</b>",
                 parse_mode="HTML"
             )
-            
-            # Xush kelibsiz xabarini yuboramiz
             send_welcome(message.chat.id, first_name)
         else:
-            bot.send_message(message.chat.id, "⚠️ Iltimos, o'zingizning telefon raqamingizni ulashing.")
+            bot.send_message(message.chat.id, "⚠️ Iltimos, pastdagi tugma orqali o'zingizning raqamingizni yuboring.")
     except Exception as e:
         logger.error(f"Error in handle_contact: {e}")
 
 def send_welcome(chat_id, first_name):
-    """Asosiy xush kelibsiz xabari."""
+    """Sayt uslubidagi asosiy xush kelibsiz xabari."""
+    web_app_url = getattr(settings, 'MINI_APP_URL', 'https://royal-barber.onrender.com/').strip()
+    website_url = getattr(settings, 'EXTERNAL_WEBSITE_URL', 'https://hackaton-eood.onrender.com/').strip()
+    
     welcome_text = (
-        f"👋 Salom, <b>{first_name}</b>!\n\n"
-        "💈 <b>Royal Barber</b> botiga xush kelibsiz.\n\n"
-        "👇 O'zingizga kerakli bo'limni tanlang yoki navbat olish uchun chap pastdagi <b>«Mini Ilova»</b> tugmasini bosing!"
+        f"👑 <b>ROYAL BARBER</b> — <i>STYLE IS KING</i>\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"👋 Xush kelibsiz, <b>{first_name}</b>!\n\n"
+        f"💈 <b>Professional ustalar, sifatli xizmat va qulay onlayn bron tizimi</b> — barchasi bir joyda.\n\n"
+        f"✨ <i>O'zingizga qulay vaqtni tanlang va professional ustalarimiz xizmatidan bahramand bo'ling!</i>\n\n"
+        f"👇 Quyidagi menyudan foydalaning yoki to'g'ridan-to'g'ri <b>Mini App</b>ni oching:"
     )
+    
+    inline_kb = types.InlineKeyboardMarkup(row_width=1)
+    if web_app_url.startswith('https://'):
+        inline_kb.add(types.InlineKeyboardButton("🚀 Mini Appda bron qilish", web_app=types.WebAppInfo(url=web_app_url)))
+    if website_url:
+        inline_kb.add(types.InlineKeyboardButton("🌐 Rasmiy veb-saytimiz", url=website_url))
+        
     bot.send_message(chat_id, welcome_text, parse_mode="HTML", reply_markup=get_main_menu())
+    bot.send_message(chat_id, "⚡️ <b>Tezkor harakatlar:</b>", parse_mode="HTML", reply_markup=inline_kb)
 
 @bot.message_handler(commands=['help']) if bot else None
 def handle_help(message):
     help_text = (
-        "❓ <b>Yordam bo'limi</b>\n\n"
-        "Quyidagi buyruqlardan foydalanishingiz mumkin:\n"
-        "/start - Botni qayta ishga tushirish\n"
-        "/services - Xizmatlar ro'yxati\n"
-        "/barbers - Ustalar ro'yxati\n"
-        "/bookings - Faol navbatlar\n"
-        "/about - Sartaroshxona ma'lumotlari"
+        "👑 <b>ROYAL BARBER | Yordam</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        "📌 <b>Mavjud buyruqlar:</b>\n\n"
+        "• /start — Botni ishga tushirish\n"
+        "• /services — Bizning xizmatlar va narxlar\n"
+        "• /barbers — Professional ustalar\n"
+        "• /bookings — Sizning faol navbatlaringiz\n"
+        "• /about — Manzil va aloqa ma'lumotlari\n"
+        "• /help — Ushbu yordam oynasi"
     )
     bot.send_message(message.chat.id, help_text, parse_mode="HTML")
 
 @bot.message_handler(commands=['about']) if bot else None
+@bot.message_handler(func=lambda m: m.text == "ℹ️ Biz haqimizda") if bot else None
 def handle_about(message):
+    website_url = getattr(settings, 'EXTERNAL_WEBSITE_URL', 'https://hackaton-eood.onrender.com/').strip()
+    web_app_url = getattr(settings, 'MINI_APP_URL', 'https://royal-barber.onrender.com/').strip()
+    
     about_text = (
-        "💈 <b>Royal Barber Shop</b>\n\n"
-        "📍 <b>Manzilimiz:</b> Toshkent shahri, Amir Temur ko'chasi, 15-uy\n"
+        "👑 <b>ROYAL BARBER</b> — <i>STYLE IS KING</i>\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        "💈 <b>Premium Sartaroshxona</b>\n"
+        "Professional ustalar, zamonaviy uslub va oliy darajadagi servis.\n\n"
+        "📍 <b>Manzil:</b> Toshkent shahri\n"
         "📞 <b>Telefon:</b> +998 (90) 123-45-67\n"
-        "🕒 <b>Ish vaqti:</b> Har kuni 09:00 dan 20:00 gacha\n\n"
-        "Mavjud xizmatlarimiz va ustalar bilan tanishish yoki navbat olish uchun pastdagi menyudan foydalaning!"
+        "🕒 <b>Ish vaqti:</b> Har kuni 09:00 — 21:00\n\n"
+        "✂️ Har bir xizmat yuqori sifat va e'tibor bilan bajariladi."
     )
-    bot.send_message(message.chat.id, about_text, parse_mode="HTML")
-
-@bot.message_handler(func=lambda m: m.text == "📅 Navbat olish") if bot else None
-def handle_navbat_button(message):
-    web_app_url = getattr(settings, 'MINI_APP_URL', 'http://127.0.0.1:8000/').strip()
+    markup = types.InlineKeyboardMarkup()
+    if website_url:
+        markup.add(types.InlineKeyboardButton("🌐 Rasmiy sayt", url=website_url))
     if web_app_url.startswith('https://'):
-        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("💈 Bron qilish", web_app=types.WebAppInfo(url=web_app_url)))
+        
+    bot.send_message(message.chat.id, about_text, parse_mode="HTML", reply_markup=markup)
+
+@bot.message_handler(func=lambda m: m.text == "🌐 Rasmiy sayt") if bot else None
+def handle_website_btn(message):
+    website_url = getattr(settings, 'EXTERNAL_WEBSITE_URL', 'https://hackaton-eood.onrender.com/').strip()
+    markup = types.InlineKeyboardMarkup()
+    markup.add(types.InlineKeyboardButton("🌐 Saytga o'tish", url=website_url))
+    bot.send_message(
+        message.chat.id, 
+        f"👑 <b>Royal Barber Rasmiy Sayti</b>\n\nBarcha xizmatlar, fotogalereya va yangiliklar saytimizda:", 
+        parse_mode="HTML", 
+        reply_markup=markup
+    )
+
+@bot.message_handler(func=lambda m: m.text in ["💈 Navbat olish", "💈 Mini Appda bron qilish"]) if bot else None
+def handle_navbat_button(message):
+    web_app_url = getattr(settings, 'MINI_APP_URL', 'https://royal-barber.onrender.com/').strip()
+    markup = types.InlineKeyboardMarkup()
+    if web_app_url.startswith('https://'):
         markup.add(types.InlineKeyboardButton("🚀 Mini Appni ochish", web_app=types.WebAppInfo(url=web_app_url)))
-        bot.send_message(message.chat.id, "Mini App orqali navbat olish uchun pastdagi tugmani bosing:", reply_markup=markup)
+        bot.send_message(message.chat.id, "💈 <b>1 daqiqada onlayn navbat oling:</b>", parse_mode="HTML", reply_markup=markup)
     else:
-        text = (
-            "📅 <b>Navbat olish (Mini App)</b>\n\n"
-            "⚠️ Telegram Mini App ishlashi uchun <b>HTTPS</b> havolasi kerak.\n\n"
-            "🛠 <i>Localhostda sinash uchun ngrok'dan foydalaning va settings.py fayliga https linkini kiriting.</i>\n\n"
-            f"🌐 Brauzerda ochish uchun: {web_app_url}"
-        )
-        bot.send_message(message.chat.id, text, parse_mode="HTML")
+        bot.send_message(message.chat.id, f"🌐 Brauzerda ochish: {web_app_url}")
+
 
 @bot.message_handler(commands=['services']) if bot else None
 @bot.message_handler(func=lambda m: m.text == "✂️ Xizmatlar") if bot else None
@@ -164,32 +204,51 @@ def show_services(message):
         bot.send_message(message.chat.id, "Hozircha xizmatlar kiritilmagan.")
         return
         
-    text = "✂️ <b>Bizning xizmatlar va narxlar:</b>\n\n"
+    web_app_url = getattr(settings, 'MINI_APP_URL', 'https://royal-barber.onrender.com/').strip()
+    text = (
+        "👑 <b>ROYAL BARBER | Xizmatlar</b>\n"
+        "<i>Har bir xizmat yuqori sifat va e'tibor bilan bajariladi</i>\n"
+        "━━━━━━━━━━━━━━━━━━━━\n\n"
+    )
     for s in services:
         name = html.escape(s.name)
-        text += f"{s.icon} <b>{name}</b>\n"
-        text += f"└ Narxi: {int(s.price):,} UZS | Davomiyligi: {s.duration_minutes} daqiqa\n\n"
+        text += f"✂️ <b>{name}</b>\n"
+        text += f"💰 <b>{int(s.price):,} so'm</b>  |  ⏱ {s.duration_minutes} daqiqa\n"
+        text += f"━━━━━━━━━━━━━━━━━━━━\n"
         
-    bot.send_message(message.chat.id, text, parse_mode="HTML")
+    markup = types.InlineKeyboardMarkup()
+    if web_app_url.startswith('https://'):
+        markup.add(types.InlineKeyboardButton("💈 Bron qilish", web_app=types.WebAppInfo(url=web_app_url)))
+    bot.send_message(message.chat.id, text, parse_mode="HTML", reply_markup=markup)
 
 @bot.message_handler(commands=['barbers']) if bot else None
-@bot.message_handler(func=lambda m: m.text == "👨🔧 Ustalar") if bot else None
+@bot.message_handler(func=lambda m: m.text == "👨‍🎨 Ustalar") if bot else None
 def show_barbers(message):
     barbers = Barber.objects.all()
     if not barbers.exists():
         bot.send_message(message.chat.id, "Hozircha ustalar kiritilmagan.")
         return
         
-    text = "👨🔧 <b>Bizning Royal ustalar:</b>\n\n"
+    web_app_url = getattr(settings, 'MINI_APP_URL', 'https://royal-barber.onrender.com/').strip()
+    text = (
+        "👑 <b>ROYAL BARBER | Ustalarimiz</b>\n"
+        "<i>Tajribali va professional sartaroshlar jamoasi</i>\n"
+        "━━━━━━━━━━━━━━━━━━━━\n\n"
+    )
     for b in barbers:
-        stars = "⭐️" * int(b.rating)
         name = html.escape(b.name)
-        spec = html.escape(b.specialty)
-        text += f"👤 <b>{name}</b>\n"
-        text += f"├ Mutaxassisligi: {spec}\n"
-        text += f"└ Reytingi: {b.rating} {stars}\n\n"
+        spec = html.escape(b.specialty or "Professional usta")
+        rating = float(b.rating) if b.rating else 4.9
+        stars = "⭐️" * int(round(rating))
+        text += f"💈 <b>{name}</b>\n"
+        text += f"👔 Tajriba / Mutaxassislik: {spec}\n"
+        text += f"★ Reyting: <b>{rating:.2f}</b> {stars}\n"
+        text += f"━━━━━━━━━━━━━━━━━━━━\n"
         
-    bot.send_message(message.chat.id, text, parse_mode="HTML")
+    markup = types.InlineKeyboardMarkup()
+    if web_app_url.startswith('https://'):
+        markup.add(types.InlineKeyboardButton("💈 Ustani tanlab bron qilish", web_app=types.WebAppInfo(url=web_app_url)))
+    bot.send_message(message.chat.id, text, parse_mode="HTML", reply_markup=markup)
 
 @bot.message_handler(commands=['bookings']) if bot else None
 @bot.message_handler(func=lambda m: m.text == "📋 Mening navbatim") if bot else None
