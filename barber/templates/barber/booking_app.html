@@ -704,9 +704,7 @@
         <div class="slogan-badge">👑 STYLE IS KING</div>
         <h1 data-i18n="title">ROYAL BARBER</h1>
         <p class="subtitle" id="user-greeting">Premium Sartaroshxona • Onlayn Bron</p>
-        {% if external_website_url %}
-        <a href="{{ external_website_url }}" target="_blank" class="site-link-btn" data-i18n="visit_site">🌐 Rasmiy saytga o'tish</a>
-        {% endif %}
+        <button type="button" onclick="openOfficialSite()" class="site-link-btn" data-i18n="visit_site">🌐 Rasmiy saytga o'tish</button>
     </header>
 
     <!-- Steps Indicator -->
@@ -840,6 +838,24 @@
     </div>
 
     <script>
+        // Telegram WebApp Init
+        const tg = window.Telegram?.WebApp;
+        if (tg) {
+            tg.ready();
+            tg.expand();
+        }
+
+        const OFFICIAL_SITE_URL = "{{ external_website_url|default:'https://hackaton-eood.onrender.com/' }}";
+
+        function openOfficialSite() {
+            const url = (OFFICIAL_SITE_URL || 'https://hackaton-eood.onrender.com/').trim();
+            if (window.Telegram && window.Telegram.WebApp && typeof window.Telegram.WebApp.openLink === 'function') {
+                window.Telegram.WebApp.openLink(url);
+            } else {
+                window.open(url, '_blank');
+            }
+        }
+
         // Translations
         const translations = {
             uz: {

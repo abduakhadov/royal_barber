@@ -11,3 +11,7 @@ python manage.py collectstatic --no-input
 
 # Run migrations
 python manage.py migrate
+
+# Initialize zones, services and barbers
+python setup_zones.py
+python seed_db.py
