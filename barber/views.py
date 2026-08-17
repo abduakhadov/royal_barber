@@ -25,6 +25,16 @@ def get_zones(request):
     return JsonResponse({'zones': data})
 
 def get_services(request):
+    if not Service.objects.exists():
+        default_services = [
+            {"icon": "👑", "name": "Soch + Soqol (VIP)", "price": 80000, "duration_minutes": 60},
+            {"icon": "✂️", "name": "Klassik soch olish", "price": 50000, "duration_minutes": 30},
+            {"icon": "🧔", "name": "Soqol dizayni", "price": 40000, "duration_minutes": 25},
+            {"icon": "✨", "name": "Royal Premium Pack (Soch + Soqol + Mask)", "price": 120000, "duration_minutes": 60},
+        ]
+        for s in default_services:
+            Service.objects.get_or_create(name=s["name"], defaults=s)
+
     services = Service.objects.all()
     data = [{
         'id': s.id,
@@ -36,6 +46,16 @@ def get_services(request):
     return JsonResponse({'services': data})
 
 def get_barbers(request):
+    if not Barber.objects.exists():
+        default_barbers = [
+            {"name": "Aziz Usta", "specialty": "10 yillik tajriba / Bosh sartarosh", "rating": 4.9, "photo_url": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=150&auto=format&fit=crop"},
+            {"name": "Jahongir Rustamov", "specialty": "Top Barber / Royal Stylist", "rating": 4.9, "photo_url": "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=150&auto=format&fit=crop"},
+            {"name": "Sardor Alimov", "specialty": "Soch va Soqol mutaxassisi", "rating": 4.8, "photo_url": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=150&auto=format&fit=crop"},
+            {"name": "Diyorbek Toshpo'latov", "specialty": "Beard & Styling Master", "rating": 5.0, "photo_url": "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?q=80&w=150&auto=format&fit=crop"}
+        ]
+        for b in default_barbers:
+            Barber.objects.get_or_create(name=b["name"], defaults=b)
+
     barbers = Barber.objects.all()
     data = [{
         'id': b.id,
@@ -56,7 +76,7 @@ def get_available_slots(request):
     zone_id = request.GET.get('zone_id')
     service_id = request.GET.get('service_id')
     
-    if not all([barber_id, date_str, zone_id, service_id]):
+    if not all([barber_id, date_str, service_id]):
         return JsonResponse({'error': "Hamma ma'lumotlar kiritilishi shart."}, status=400)
         
     date = parse_date(date_str)
@@ -64,10 +84,9 @@ def get_available_slots(request):
         return JsonResponse({'error': "Sana formati noto'g'ri."}, status=400)
         
     try:
-        zone = Zone.objects.get(id=zone_id)
         service = Service.objects.get(id=service_id)
-    except (Zone.DoesNotExist, Service.DoesNotExist):
-        return JsonResponse({'error': "Zona yoki xizmat topilmadi."}, status=404)
+    except Service.DoesNotExist:
+        return JsonResponse({'error': "Xizmat topilmadi."}, status=404)
 
     # 1. Tozalash: 15 daqiqadan oshgan to'lanmagan 'pending' navbatlarni bekor qilish
     expire_threshold = timezone.now() - datetime.timedelta(minutes=15)
