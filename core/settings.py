@@ -145,7 +145,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', 'YOUR_BOT_TOKEN_HERE')
 MINI_APP_URL = os.getenv('MINI_APP_URL', 'http://127.0.0.1:8000/')
 PAYMENT_PROVIDER_TOKEN = os.getenv('PAYMENT_PROVIDER_TOKEN', '')
-EXTERNAL_WEBSITE_URL = os.getenv('EXTERNAL_WEBSITE_URL', 'https://example.com')
+EXTERNAL_WEBSITE_URL = os.getenv('EXTERNAL_WEBSITE_URL', 'https://hackaton-eood.onrender.com/')
 
 
 
