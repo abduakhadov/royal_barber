@@ -29,7 +29,16 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-*$k1v7!&hsaf65j6l_p1qssht5
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'True').lower() in ('true', '1')
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',') if os.getenv('ALLOWED_HOSTS') else ['*']
+
+# CSRF trusted origins for Render.com
+CSRF_TRUSTED_ORIGINS = [
+    'https://*.onrender.com',
+    'https://*.lhr.life',
+    os.getenv('MINI_APP_URL', '').rstrip('/'),
+    os.getenv('EXTERNAL_WEBSITE_URL', '').rstrip('/'),
+]
+CSRF_TRUSTED_ORIGINS = [url for url in CSRF_TRUSTED_ORIGINS if url]
 
 # X-Frame-Options to allow Telegram Mini App framing
 X_FRAME_OPTIONS = 'ALLOWALL'
@@ -49,6 +58,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Static fayllar uchun
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -124,7 +134,10 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# WhiteNoise - static fayllarni cache qilish uchun
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
