@@ -12,5 +12,8 @@ urlpatterns = [
     path('api/book/', views.book_appointment, name='book'),
     path('api/my-bookings/', views.get_my_bookings, name='my_bookings'),
     path('api/cancel-booking/', views.cancel_booking_api, name='cancel_booking'),
+    path('api/send-otp/', views.send_otp_api, name='send_otp'),
+    path('api/verify-otp/', views.verify_otp_api, name='verify_otp'),
 ]
+
 

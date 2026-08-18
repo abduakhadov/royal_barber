@@ -365,3 +365,126 @@ def cancel_booking_api(request):
         return JsonResponse({'error': 'Navbat topilmadi.'}, status=404)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=400)
+
+import random
+OTP_STORE = {}
+
+@csrf_exempt
+def send_otp_api(request):
+    """Telefon raqam yoki Telegram orqali ro'yxatdan o'tish uchun 6-xonali tasdiqlash kodini yuborish."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST talab qilinadi'}, status=405)
+    try:
+        data = json.loads(request.body)
+        phone = str(data.get('phone', '')).strip().replace(' ', '').replace('-', '')
+        tg_id_raw = data.get('telegram_id')
+        first_name = data.get('first_name', 'Mijoz')
+        
+        if not phone and not tg_id_raw:
+            return JsonResponse({'error': 'Telefon raqam kiritilishi shart.'}, status=400)
+            
+        code = str(random.randint(100000, 999999))
+        key = phone if phone else str(tg_id_raw)
+        OTP_STORE[key] = {
+            'code': code,
+            'expires': timezone.now() + datetime.timedelta(minutes=10),
+            'first_name': first_name
+        }
+        
+        # Telegram Bot orqali yuborish
+        bot_token = getattr(settings, 'TELEGRAM_BOT_TOKEN', None)
+        tg_sent = False
+        
+        # Telegram ID aniqlash
+        tg_id = None
+        if tg_id_raw and str(tg_id_raw) != '123456':
+            try:
+                tg_id = int(tg_id_raw)
+            except ValueError:
+                pass
+        if not tg_id and phone:
+            cust = Customer.objects.filter(phone__icontains=phone[-9:]).first()
+            if cust and cust.telegram_id and cust.telegram_id != 123456:
+                tg_id = cust.telegram_id
+
+        if bot_token and tg_id:
+            msg_text = (
+                f"👑 <b>ROYAL BARBER | Ro'yxatdan o'tish kodi</b>\n"
+                f"━━━━━━━━━━━━━━━━━━━━\n"
+                f"🔐 Sizning tasdiqlash kodingiz: <code>{code}</code>\n\n"
+                f"Ushbu kodni ilovaga kiriting. Kod 10 daqiqa davomida amal qiladi.\n"
+                f"<i>Hech kimga bu kodni bermang!</i>"
+            )
+            url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+            try:
+                requests.post(url, json={'chat_id': tg_id, 'text': msg_text, 'parse_mode': 'HTML'}, timeout=4)
+                tg_sent = True
+            except Exception as e:
+                logger.error(f"OTP send telegram error: {e}")
+                
+        return JsonResponse({
+            'success': True,
+            'code': code, # return in response so testing/browser is always instant
+            'telegram_sent': tg_sent,
+            'message': f"Tasdiqlash kodi yuborildi: {code}" if not tg_sent else "Tasdiqlash kodi Telegram botingizga yuborildi!"
+        })
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+@csrf_exempt
+def verify_otp_api(request):
+    """Kiritilgan 6-xonali kodni tekshirish va ro'yxatdan o'tkazish."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST talab qilinadi'}, status=405)
+    try:
+        data = json.loads(request.body)
+        phone = str(data.get('phone', '')).strip().replace(' ', '').replace('-', '')
+        code = str(data.get('code', '')).strip()
+        first_name = data.get('first_name', 'Mijoz')
+        tg_id_raw = data.get('telegram_id')
+        
+        key = phone if phone else str(tg_id_raw)
+        stored = OTP_STORE.get(key)
+        
+        # Test yoki haqiqiy kodni tekshirish
+        is_valid = False
+        if stored and stored['code'] == code:
+            if timezone.now() <= stored['expires']:
+                is_valid = True
+        elif code in ['777777', '123456']: # Developer master codes
+            is_valid = True
+            
+        if not is_valid:
+            return JsonResponse({'error': 'Tasdiqlash kodi noto\'g\'ri yoki muddati o\'tgan.'}, status=400)
+            
+        try:
+            tg_id = int(tg_id_raw) if tg_id_raw else random.randint(1000000, 9999999)
+        except (ValueError, TypeError):
+            tg_id = random.randint(1000000, 9999999)
+            
+        customer, created = Customer.objects.get_or_create(
+            telegram_id=tg_id,
+            defaults={'first_name': first_name, 'phone': phone}
+        )
+        if phone:
+            customer.phone = phone
+        if first_name and customer.first_name != first_name:
+            customer.first_name = first_name
+        customer.save()
+        
+        # Clear used OTP
+        OTP_STORE.pop(key, None)
+        
+        return JsonResponse({
+            'success': True,
+            'customer': {
+                'id': customer.id,
+                'first_name': customer.first_name,
+                'phone': customer.phone,
+                'telegram_id': customer.telegram_id
+            },
+            'message': 'Muvaffaqiyatli ro\'yxatdan o\'tdingiz!'
+        })
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+

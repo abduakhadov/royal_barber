@@ -756,9 +756,152 @@
             from { opacity: 0; transform: scale(0.92); }
             to { opacity: 1; transform: scale(1); }
         }
+
+        /* OTP Registration Overlay */
+        .otp-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-color);
+            z-index: 999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .otp-overlay.hidden {
+            display: none;
+        }
+
+        .otp-logo {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: var(--gold-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            margin-bottom: 16px;
+            box-shadow: var(--gold-glow);
+        }
+
+        .otp-box {
+            width: 100%;
+            max-width: 380px;
+            background: var(--secondary-bg);
+            border-radius: var(--radius-lg);
+            padding: 28px 22px;
+            border: 1px solid var(--border-color);
+        }
+
+        .otp-title {
+            font-size: 20px;
+            font-weight: 800;
+            margin-bottom: 6px;
+            text-align: center;
+        }
+
+        .otp-desc {
+            font-size: 13px;
+            color: var(--text-secondary);
+            text-align: center;
+            margin-bottom: 22px;
+            line-height: 1.5;
+        }
+
+        .otp-code-row {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+
+        .otp-digit {
+            width: 44px;
+            height: 52px;
+            border-radius: 10px;
+            border: 2px solid var(--border-color);
+            background: var(--card-bg);
+            color: var(--text-color);
+            font-size: 22px;
+            font-weight: 800;
+            text-align: center;
+            outline: none;
+            transition: var(--transition);
+        }
+
+        .otp-digit:focus {
+            border-color: var(--gold);
+            box-shadow: 0 0 0 3px rgba(212,175,55,0.2);
+        }
+
+        .otp-message {
+            font-size: 13px;
+            text-align: center;
+            min-height: 20px;
+            margin-bottom: 14px;
+            font-weight: 600;
+        }
+
+        .otp-message.error { color: var(--accent-red); }
+        .otp-message.success { color: var(--accent-green); }
+
+        .otp-resend {
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 12px;
+            cursor: pointer;
+        }
+
+        .otp-resend span {
+            color: var(--gold);
+            font-weight: 700;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
+
+    <!-- OTP REGISTRATION OVERLAY -->
+    <div class="otp-overlay hidden" id="otp-overlay">
+        <div class="otp-logo">👑</div>
+        <div class="otp-box">
+            <div id="otp-step-phone">
+                <h2 class="otp-title">Ro'yxatdan o'tish</h2>
+                <p class="otp-desc">Navbat olish uchun telefon raqamingizni kiriting. Telegram botingizga 6-xonali kod yuboriladi.</p>
+                <div class="form-group">
+                    <label class="form-label">Ismingiz</label>
+                    <input type="text" class="form-input" id="otp-name-input" placeholder="Ism Familiya" style="margin-bottom:10px;">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Telefon raqam</label>
+                    <input type="tel" class="form-input" id="otp-phone-input" placeholder="+998 90 123 45 67">
+                </div>
+                <div class="otp-message" id="otp-phone-msg"></div>
+                <button class="btn-primary" id="btn-send-otp" style="width:100%;margin-top:4px;">📩 Kod yuborish</button>
+            </div>
+
+            <div id="otp-step-verify" style="display:none;">
+                <h2 class="otp-title">Kodni kiriting</h2>
+                <p class="otp-desc" id="otp-verify-desc">Telegram botingizga yuborilgan 6-xonali kodni kiriting.</p>
+                <div class="otp-code-row">
+                    <input class="otp-digit" maxlength="1" inputmode="numeric" id="d1">
+                    <input class="otp-digit" maxlength="1" inputmode="numeric" id="d2">
+                    <input class="otp-digit" maxlength="1" inputmode="numeric" id="d3">
+                    <input class="otp-digit" maxlength="1" inputmode="numeric" id="d4">
+                    <input class="otp-digit" maxlength="1" inputmode="numeric" id="d5">
+                    <input class="otp-digit" maxlength="1" inputmode="numeric" id="d6">
+                </div>
+                <div class="otp-message" id="otp-verify-msg"></div>
+                <button class="btn-primary" id="btn-verify-otp" style="width:100%;">✅ Tasdiqlash</button>
+                <div class="otp-resend">Kod kelmadimi? <span id="btn-resend-otp">Qayta yuborish</span></div>
+            </div>
+        </div>
+    </div>
 
     <!-- Header -->
     <header>
@@ -1002,8 +1145,160 @@
             first_name: tg.initDataUnsafe?.user?.first_name || '',
             last_name: tg.initDataUnsafe?.user?.last_name || '',
             username: tg.initDataUnsafe?.user?.username || '',
-            phone: ''
+            phone: localStorage.getItem('rb_phone') || ''
         };
+
+        // --- OTP REGISTRATION FLOW ---
+        // Agar Telegram ID yo'q bo'lsa (browser, emas Mini App), OTP ro'yxatdan o'tish oynasi
+        const isInTelegram = !!(tg.initDataUnsafe?.user?.id);
+        const savedPhone = localStorage.getItem('rb_phone');
+        const savedName = localStorage.getItem('rb_name');
+
+        if (!isInTelegram && !savedPhone) {
+            // Brauzerda ochilganda - OTP kerak
+            document.getElementById('otp-overlay').classList.remove('hidden');
+        } else if (savedPhone && savedName) {
+            // LocalStorage'dan tiklash
+            currentUser.phone = savedPhone;
+            currentUser.first_name = savedName || currentUser.first_name;
+        }
+
+        let otpSentCode = null;
+
+        document.getElementById('btn-send-otp').addEventListener('click', async () => {
+            const phone = document.getElementById('otp-phone-input').value.trim();
+            const name = document.getElementById('otp-name-input').value.trim();
+            const msgEl = document.getElementById('otp-phone-msg');
+
+            if (!phone || phone.length < 9) {
+                msgEl.className = 'otp-message error';
+                msgEl.innerText = 'Telefon raqamni to\'g\'ri kiriting!';
+                return;
+            }
+
+            const btn = document.getElementById('btn-send-otp');
+            btn.disabled = true;
+            btn.innerText = 'Yuborilmoqda...';
+            msgEl.className = 'otp-message';
+            msgEl.innerText = '';
+
+            try {
+                const res = await fetch('/api/send-otp/', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        phone: phone,
+                        first_name: name || 'Mijoz',
+                        telegram_id: currentUser.telegram_id
+                    })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    otpSentCode = data.code; // dev fallback
+                    currentUser.phone = phone;
+                    currentUser.first_name = name || 'Mijoz';
+
+                    document.getElementById('otp-step-phone').style.display = 'none';
+                    document.getElementById('otp-step-verify').style.display = 'block';
+
+                    const verifyDesc = document.getElementById('otp-verify-desc');
+                    if (data.telegram_sent) {
+                        verifyDesc.innerText = `Telegram botingizga ${phone} raqamiga bog'liq kodni yubordik. Botni oching!`;
+                    } else {
+                        verifyDesc.innerHTML = `Kod: <b style="color:var(--gold);font-size:18px;letter-spacing:2px">${data.code}</b><br><small style="color:var(--text-secondary)">Telegram botga bog'liq emas, kodni yuqorida ko'ring</small>`;
+                    }
+                    document.getElementById('d1').focus();
+                } else {
+                    msgEl.className = 'otp-message error';
+                    msgEl.innerText = data.error || 'Xatolik yuz berdi.';
+                }
+            } catch(e) {
+                msgEl.className = 'otp-message error';
+                msgEl.innerText = 'Serverga ulanishda xatolik.';
+            }
+            btn.disabled = false;
+            btn.innerText = '📩 Kod yuborish';
+        });
+
+        // Auto-advance OTP digits
+        ['d1','d2','d3','d4','d5','d6'].forEach((id, idx, arr) => {
+            const el = document.getElementById(id);
+            el.addEventListener('input', () => {
+                el.value = el.value.replace(/\D/g,'').slice(-1);
+                if (el.value && idx < arr.length - 1) {
+                    document.getElementById(arr[idx+1]).focus();
+                }
+            });
+            el.addEventListener('keydown', e => {
+                if (e.key === 'Backspace' && !el.value && idx > 0) {
+                    document.getElementById(arr[idx-1]).focus();
+                }
+            });
+        });
+
+        document.getElementById('btn-verify-otp').addEventListener('click', async () => {
+            const code = ['d1','d2','d3','d4','d5','d6'].map(id => document.getElementById(id).value).join('');
+            const msgEl = document.getElementById('otp-verify-msg');
+
+            if (code.length < 6) {
+                msgEl.className = 'otp-message error';
+                msgEl.innerText = 'Barcha 6 ta raqamni kiriting!';
+                return;
+            }
+
+            const btn = document.getElementById('btn-verify-otp');
+            btn.disabled = true;
+            btn.innerText = 'Tekshirilmoqda...';
+
+            try {
+                const res = await fetch('/api/verify-otp/', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        phone: currentUser.phone,
+                        code: code,
+                        first_name: currentUser.first_name,
+                        telegram_id: currentUser.telegram_id
+                    })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    msgEl.className = 'otp-message success';
+                    msgEl.innerText = '✅ Tasdiqlandi!';
+                    // Save to state and localStorage
+                    currentUser.phone = data.customer.phone;
+                    currentUser.first_name = data.customer.first_name;
+                    currentUser.telegram_id = data.customer.telegram_id;
+                    localStorage.setItem('rb_phone', data.customer.phone);
+                    localStorage.setItem('rb_name', data.customer.first_name);
+                    // Pre-fill inputs
+                    document.getElementById('input-customer-name').value = data.customer.first_name;
+                    document.getElementById('input-customer-phone').value = data.customer.phone;
+                    document.getElementById('user-greeting').innerText = `Salom, ${data.customer.first_name}!`;
+
+                    setTimeout(() => {
+                        document.getElementById('otp-overlay').classList.add('hidden');
+                    }, 600);
+                } else {
+                    msgEl.className = 'otp-message error';
+                    msgEl.innerText = data.error || 'Noto\'g\'ri kod!';
+                }
+            } catch(e) {
+                msgEl.className = 'otp-message error';
+                msgEl.innerText = 'Serverga ulanishda xatolik.';
+            }
+            btn.disabled = false;
+            btn.innerText = '✅ Tasdiqlash';
+        });
+
+        document.getElementById('btn-resend-otp').addEventListener('click', () => {
+            document.getElementById('otp-step-verify').style.display = 'none';
+            document.getElementById('otp-step-phone').style.display = 'block';
+            ['d1','d2','d3','d4','d5','d6'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('otp-phone-msg').innerText = '';
+        });
 
         // Translations
         const i18n = {
