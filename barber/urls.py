@@ -10,4 +10,7 @@ urlpatterns = [
     path('api/barbers/', views.get_barbers, name='barbers'),
     path('api/available-slots/', views.get_available_slots, name='slots'),
     path('api/book/', views.book_appointment, name='book'),
+    path('api/my-bookings/', views.get_my_bookings, name='my_bookings'),
+    path('api/cancel-booking/', views.cancel_booking_api, name='cancel_booking'),
 ]
+

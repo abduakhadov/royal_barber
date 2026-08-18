@@ -3,12 +3,19 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.dateparse import parse_date
 from django.conf import settings
+from django.db import transaction
+from django.db.models import Q
+from django.utils import timezone
 from .models import Customer, Barber, Service, Booking, Zone
 import json
 import datetime
+import requests
+import logging
+
+logger = logging.getLogger(__name__)
 
 def index(request):
-    external_url = getattr(settings, 'EXTERNAL_WEBSITE_URL', '')
+    external_url = getattr(settings, 'EXTERNAL_WEBSITE_URL', 'https://hackaton-eood.onrender.com/')
     return render(request, 'barber/booking_app.html', {'external_website_url': external_url})
 
 def get_zones(request):
@@ -31,11 +38,13 @@ def get_services(request):
             {"icon": "✂️", "name": "Klassik soch olish", "price": 50000, "duration_minutes": 30},
             {"icon": "🧔", "name": "Soqol dizayni", "price": 40000, "duration_minutes": 25},
             {"icon": "✨", "name": "Royal Premium Pack (Soch + Soqol + Mask)", "price": 120000, "duration_minutes": 60},
+            {"icon": "👦", "name": "Bolalar soch turmagi", "price": 35000, "duration_minutes": 25},
+            {"icon": "💆‍♂️", "name": "Yuz parvarishi va qora niqob", "price": 30000, "duration_minutes": 20},
         ]
         for s in default_services:
             Service.objects.get_or_create(name=s["name"], defaults=s)
 
-    services = Service.objects.all()
+    services = Service.objects.all().order_by('id')
     data = [{
         'id': s.id,
         'name': s.name,
@@ -48,15 +57,15 @@ def get_services(request):
 def get_barbers(request):
     if not Barber.objects.exists():
         default_barbers = [
-            {"name": "Aziz Usta", "specialty": "10 yillik tajriba / Bosh sartarosh", "rating": 4.9, "photo_url": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=150&auto=format&fit=crop"},
-            {"name": "Jahongir Rustamov", "specialty": "Top Barber / Royal Stylist", "rating": 4.9, "photo_url": "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=150&auto=format&fit=crop"},
-            {"name": "Sardor Alimov", "specialty": "Soch va Soqol mutaxassisi", "rating": 4.8, "photo_url": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=150&auto=format&fit=crop"},
-            {"name": "Diyorbek Toshpo'latov", "specialty": "Beard & Styling Master", "rating": 5.0, "photo_url": "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?q=80&w=150&auto=format&fit=crop"}
+            {"name": "Aziz Usta", "specialty": "10 yillik tajriba / Bosh sartarosh", "rating": 4.9, "photo_url": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=250&auto=format&fit=crop"},
+            {"name": "Jahongir Rustamov", "specialty": "Top Barber / Royal Stylist", "rating": 4.9, "photo_url": "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=250&auto=format&fit=crop"},
+            {"name": "Sardor Alimov", "specialty": "Soch va Soqol mutaxassisi", "rating": 4.8, "photo_url": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=250&auto=format&fit=crop"},
+            {"name": "Diyorbek Toshpo'latov", "specialty": "Beard & Styling Master", "rating": 5.0, "photo_url": "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?q=80&w=250&auto=format&fit=crop"}
         ]
         for b in default_barbers:
             Barber.objects.get_or_create(name=b["name"], defaults=b)
 
-    barbers = Barber.objects.all()
+    barbers = Barber.objects.all().order_by('id')
     data = [{
         'id': b.id,
         'name': b.name,
@@ -65,10 +74,6 @@ def get_barbers(request):
         'specialty': b.specialty
     } for b in barbers]
     return JsonResponse({'barbers': data})
-
-from django.db import transaction
-from django.db.models import Q
-from django.utils import timezone
 
 def get_available_slots(request):
     barber_id = request.GET.get('barber_id')
@@ -88,7 +93,7 @@ def get_available_slots(request):
     except Service.DoesNotExist:
         return JsonResponse({'error': "Xizmat topilmadi."}, status=404)
 
-    # 1. Tozalash: 15 daqiqadan oshgan to'lanmagan 'pending' navbatlarni bekor qilish
+    # 15 daqiqadan oshgan to'lanmagan pending navbatlarni bekor qilish
     expire_threshold = timezone.now() - datetime.timedelta(minutes=15)
     Booking.objects.filter(
         status='pending',
@@ -96,7 +101,7 @@ def get_available_slots(request):
         created_at__lt=expire_threshold
     ).update(status='cancelled')
 
-    # Ish vaqtini aniqlash (Dushanba=0, Yakshanba=6)
+    # Ish vaqti (Dushanba=0, Shanba=5, Yakshanba=6)
     weekday = date.weekday()
     if weekday == 6: # Yakshanba
         return JsonResponse({'slots': [], 'closed': True})
@@ -108,8 +113,6 @@ def get_available_slots(request):
     start_time = datetime.datetime.combine(date, datetime.time(start_hour, 0))
     day_end_time = datetime.datetime.combine(date, datetime.time(end_hour, 0))
     
-    # Bugungi kun uchun o'tib ketgan vaqtni aniqlash
-    # (Uzbekistan vaqti uchun UTC+5)
     now = timezone.now().astimezone(datetime.timezone(datetime.timedelta(hours=5)))
     is_today = (date == now.date())
 
@@ -120,7 +123,6 @@ def get_available_slots(request):
         slot_start_dt = current_time
         slot_end_dt = slot_start_dt + datetime.timedelta(minutes=service.duration_minutes)
         
-        # Agar xizmat ish vaqtidan chiqib ketsa, bu slotni qo'shmaymiz
         if slot_end_dt > day_end_time:
             break
             
@@ -134,7 +136,7 @@ def get_available_slots(request):
             'reason': ''
         }
         
-        # O'tgan vaqtni tekshirish
+        # O'tgan vaqt tekshiruvi
         if is_today and slot_start_dt.time() <= now.time():
             slot_info['available'] = False
             slot_info['reason'] = 'past'
@@ -142,8 +144,6 @@ def get_available_slots(request):
             current_time += datetime.timedelta(minutes=30)
             continue
             
-        # Overlap (To'qnashuv) tekshirish: Boshlanish vaqti avvalgi xizmatning tugashidan oldin,
-        # tugash vaqti avvalgi xizmatning boshlanishidan keyin bo'lsa - to'qnashuv.
         overlap_q = Q(time_slot__lt=slot_end_time) & Q(end_time__gt=slot_start_time)
         active_status = ['pending', 'confirmed']
         
@@ -161,7 +161,7 @@ def get_available_slots(request):
             current_time += datetime.timedelta(minutes=30)
             continue
             
-        # Zona bandligini tekshirish (agar zona tanlangan bo'lsa)
+        # Zona bandligini tekshirish
         if zone_id:
             try:
                 zone = Zone.objects.get(id=zone_id)
@@ -189,10 +189,11 @@ def book_appointment(request):
         
     try:
         data = json.loads(request.body)
-        tg_id = data.get('telegram_id')
-        first_name = data.get('first_name', 'Mijoz')
-        last_name = data.get('last_name', '')
-        username = data.get('username', '')
+        tg_id_raw = data.get('telegram_id')
+        first_name = data.get('first_name') or 'Mijoz'
+        last_name = data.get('last_name') or ''
+        username = data.get('username') or ''
+        phone = data.get('phone') or ''
         
         zone_id = data.get('zone_id')
         barber_id = data.get('barber_id')
@@ -200,14 +201,19 @@ def book_appointment(request):
         date_str = data.get('date')
         time_slot_str = data.get('time_slot')
 
-        if not all([tg_id, barber_id, service_id, date_str, time_slot_str]):
+        if not all([barber_id, service_id, date_str, time_slot_str]):
             return JsonResponse({'error': 'Hamma ma\'lumotlar to\'ldirilishi shart.'}, status=400)
             
         date = parse_date(date_str)
         time_slot = datetime.datetime.strptime(time_slot_str, '%H:%M').time()
         
+        # Telegram ID ni xavfsiz son formatga o'tkazish
+        try:
+            tg_id = int(tg_id_raw) if tg_id_raw else 123456
+        except (ValueError, TypeError):
+            tg_id = 123456
+
         with transaction.atomic():
-            # Get objects
             zone = Zone.objects.filter(id=zone_id).first() if zone_id else None
             barber = Barber.objects.get(id=barber_id)
             service = Service.objects.get(id=service_id)
@@ -220,21 +226,24 @@ def book_appointment(request):
             overlap_q = Q(time_slot__lt=slot_end_time) & Q(end_time__gt=time_slot)
             active_status = ['pending', 'confirmed']
             
-            # Usta bandmi?
             if Booking.objects.filter(barber=barber, date=date, status__in=active_status).filter(overlap_q).exists():
-                return JsonResponse({'error': 'Ushbu vaqt boshqa mijoz tomonidan band qilindi. Boshqa vaqt tanlang.'}, status=400)
+                return JsonResponse({'error': 'Ushbu vaqt boshqa mijoz tomonidan band qilindi. Iltimos, boshqa vaqt tanlang.'}, status=400)
                 
-            # Zona to'lganmi?
             if zone and Booking.objects.filter(zone=zone, date=date, status__in=active_status).filter(overlap_q).count() >= zone.capacity:
                 return JsonResponse({'error': 'Ushbu vaqtda zona to\'lgan. Boshqa vaqt tanlang.'}, status=400)
                 
-            # Get or create customer
+            # Customer ni olish yoki yangilash
             customer, _ = Customer.objects.get_or_create(
                 telegram_id=tg_id,
-                defaults={'first_name': first_name, 'last_name': last_name, 'username': username}
+                defaults={'first_name': first_name, 'last_name': last_name, 'username': username, 'phone': phone}
             )
-            
-            booking_status = 'confirmed'
+            if first_name and customer.first_name != first_name:
+                customer.first_name = first_name
+            if phone and customer.phone != phone:
+                customer.phone = phone
+            if username and customer.username != username:
+                customer.username = username
+            customer.save()
             
             booking = Booking.objects.create(
                 customer=customer,
@@ -243,60 +252,121 @@ def book_appointment(request):
                 service=service,
                 date=date,
                 time_slot=time_slot,
-                status=booking_status
+                status='confirmed'
             )
             
-            # Xabar yuborish
-            import requests
+            booking_code = f"RB-{booking.id:04d}"
+            
+            # Telegram bot orqali xabar yuborish
             bot_token = getattr(settings, 'TELEGRAM_BOT_TOKEN', None)
-            if bot_token:
-                total_price = service.price + (zone.price if zone else 0)
+            if bot_token and customer.telegram_id and customer.telegram_id != 123456:
+                total_price = int(service.price) + (int(zone.price) if zone else 0)
                 lang = data.get('lang', 'uz')
-                
-                # Format price safely based on language
-                price_str = f"{int(total_price):,} " + ("so'm" if lang == 'uz' else "сум" if lang == 'ru' else "UZS")
+                price_str = f"{total_price:,} " + ("so'm" if lang == 'uz' else "сум" if lang == 'ru' else "UZS")
 
                 if lang == 'ru':
                     text = (
-                        f"✅ <b>Ваша запись подтверждена!</b>\n\n"
-                        f"📅 Дата: {booking.date}\n"
-                        f"🕐 Время: {booking.time_slot.strftime('%H:%M')}\n"
-                        f"✂️ Мастер: {booking.barber.name}\n"
-                        f"✂️ Услуга: {booking.service.name}\n\n"
-                        f"💰 Цена: {price_str}"
+                        f"👑 <b>ROYAL BARBER | Запись подтверждена!</b>\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\n"
+                        f"🎟 <b>Код бронирования:</b> <code>{booking_code}</code>\n\n"
+                        f"📅 <b>Дата:</b> {booking.date}\n"
+                        f"🕐 <b>Время:</b> {booking.time_slot.strftime('%H:%M')}\n"
+                        f"👨‍🎨 <b>Мастер:</b> {booking.barber.name}\n"
+                        f"✂️ <b>Услуга:</b> {booking.service.name}\n"
+                        f"💰 <b>К оплате:</b> {price_str}\n\n"
+                        f"📍 <i>Ташкент | Тел: +998 90 123 45 67</i>"
                     )
                 elif lang == 'en':
                     text = (
-                        f"✅ <b>Your appointment is confirmed!</b>\n\n"
-                        f"📅 Date: {booking.date}\n"
-                        f"🕐 Time: {booking.time_slot.strftime('%H:%M')}\n"
-                        f"✂️ Barber: {booking.barber.name}\n"
-                        f"✂️ Service: {booking.service.name}\n\n"
-                        f"💰 Price: {price_str}"
+                        f"👑 <b>ROYAL BARBER | Appointment Confirmed!</b>\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\n"
+                        f"🎟 <b>Booking Code:</b> <code>{booking_code}</code>\n\n"
+                        f"📅 <b>Date:</b> {booking.date}\n"
+                        f"🕐 <b>Time:</b> {booking.time_slot.strftime('%H:%M')}\n"
+                        f"👨‍🎨 <b>Barber:</b> {booking.barber.name}\n"
+                        f"✂️ <b>Service:</b> {booking.service.name}\n"
+                        f"💰 <b>Total Price:</b> {price_str}\n\n"
+                        f"📍 <i>Tashkent | Phone: +998 90 123 45 67</i>"
                     )
                 else:
                     text = (
-                        f"👑 <b>ROYAL BARBER | Navbatingiz tasdiqlandi!</b>\n\n"
-                        f"📅 Sana: {booking.date}\n"
-                        f"🕐 Vaqt: {booking.time_slot.strftime('%H:%M')}\n"
-                        f"👨‍🎨 Usta: {booking.barber.name}\n"
-                        f"✂️ Xizmat: {booking.service.name}\n\n"
-                        f"💰 Narx: <b>{price_str}</b>\n\n"
+                        f"👑 <b>ROYAL BARBER | Navbatingiz tasdiqlandi!</b>\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\n"
+                        f"🎟 <b>Bron kodingiz:</b> <code>{booking_code}</code>\n\n"
+                        f"📅 <b>Sana:</b> {booking.date}\n"
+                        f"🕐 <b>Vaqt:</b> {booking.time_slot.strftime('%H:%M')}\n"
+                        f"👨‍🎨 <b>Usta:</b> {booking.barber.name}\n"
+                        f"✂️ <b>Xizmat:</b> {booking.service.name}\n"
+                        f"💰 <b>Narx:</b> <b>{price_str}</b>\n\n"
                         f"📍 <i>Toshkent shahri | Tel: +998 90 123 45 67</i>"
                     )
                 
                 url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
                 try:
-                    requests.post(url, json={'chat_id': customer.telegram_id, 'text': text, 'parse_mode': 'HTML'}, timeout=2)
+                    requests.post(url, json={'chat_id': customer.telegram_id, 'text': text, 'parse_mode': 'HTML'}, timeout=4)
                 except Exception as e:
-                    print("Telegram xabar yuborishda xato:", e)
+                    logger.error(f"Telegram notification error: {e}")
             
         return JsonResponse({
             'success': True,
             'booking_id': booking.id,
-            'message': 'Navbat muvaffaqiyatli band qilindi!'
+            'booking_code': booking_code,
+            'barber_name': barber.name,
+            'service_name': service.name,
+            'date': str(booking.date),
+            'time_slot': booking.time_slot.strftime('%H:%M'),
+            'price': float(service.price + (zone.price if zone else 0)),
+            'message': 'Navbatingiz muvaffaqiyatli tasdiqlandi!'
         })
         
     except (json.JSONDecodeError, Barber.DoesNotExist, Service.DoesNotExist) as e:
         return JsonResponse({'error': str(e)}, status=400)
+    except Exception as e:
+        logger.error(f"Booking error: {e}")
+        return JsonResponse({'error': f"Xatolik yuz berdi: {str(e)}"}, status=500)
 
+def get_my_bookings(request):
+    tg_id = request.GET.get('telegram_id')
+    phone = request.GET.get('phone')
+    
+    query = Q()
+    if tg_id and tg_id != '123456':
+        try:
+            query |= Q(customer__telegram_id=int(tg_id))
+        except ValueError:
+            pass
+    if phone:
+        query |= Q(customer__phone__icontains=phone)
+        
+    if not query:
+        return JsonResponse({'bookings': []})
+        
+    bookings = Booking.objects.filter(query).order_by('-date', '-time_slot')[:10]
+    data = [{
+        'id': b.id,
+        'booking_code': f"RB-{b.id:04d}",
+        'barber_name': b.barber.name,
+        'service_name': b.service.name,
+        'date': str(b.date),
+        'time_slot': b.time_slot.strftime('%H:%M'),
+        'total_price': float(b.service.price + (b.zone.price if b.zone else 0)),
+        'status': b.status,
+        'is_paid': b.is_paid,
+    } for b in bookings]
+    return JsonResponse({'bookings': data})
+
+@csrf_exempt
+def cancel_booking_api(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST talab qilinadi'}, status=405)
+    try:
+        data = json.loads(request.body)
+        booking_id = data.get('booking_id')
+        booking = Booking.objects.get(id=booking_id)
+        booking.status = 'cancelled'
+        booking.save()
+        return JsonResponse({'success': True, 'message': 'Navbat bekor qilindi.'})
+    except Booking.DoesNotExist:
+        return JsonResponse({'error': 'Navbat topilmadi.'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
